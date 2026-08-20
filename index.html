@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Librería de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario Interno - Estilo Zite</title>
@@ -85,7 +87,7 @@
 <div class="container">
     <div class="filters-container">
         <select id="area-filter" class="filter-box" style="margin-bottom:0; max-width:250px;">
-            <option value="">Áreas</option>
+            <option value="">Areas</option>
         </select>
         <select id="vigencia-filter" class="filter-box" style="margin-bottom:0; max-width:200px;">
             <option value="">Vigencia</option>
@@ -109,11 +111,11 @@
         <table>
             <thead>
                 <tr>
-                    <th>Nº</th>
-                    <th>Área Responsable</th>
-                    <th>Ubicación</th>
+                    <th>N</th>
+                    <th>Area Responsable</th>
+                    <th>Ubicacion</th>
                     <th>Vigencia</th>
-                    <th>Condición</th>
+                    <th>Condicion</th>
                     <th>Estado</th>
                 </tr>
             </thead>
@@ -143,12 +145,12 @@
         </div>
         <div class="modal-section">
             <div class="form-group">
-                <label>Nº de Extintor:</label>
+                <label>N de Extintor:</label>
                 <input type="text" id="obs-extintor-no" readonly style="background-color: #e2e8f0; font-weight: bold;">
             </div>
             <div class="form-group">
                 <label for="obs-texto-detalle">Escriba su observación / novedad:</label>
-                <textarea id="obs-texto-detalle" rows="4" placeholder="Ej. Ubicación cambiada, requiere revisión, etc..." style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;"></textarea>
+                <textarea id="obs-texto-detalle" rows="4" placeholder="Ej. Ubicacion cambiada, requiere revisión, etc..." style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;"></textarea>
             </div>
         </div>
         <div class="modal-actions">
@@ -171,8 +173,8 @@
                 <input type="text" id="personal-cambio" placeholder="Nombre del personal">
             </div>
             <div class="form-group" style="margin-top: 10px;">
-                <label for="extintor-reemplazo">Nº Extintor Prestado / Garantía:</label>
-                <input type="text" id="extintor-reemplazo" placeholder="Nº de extintor que dejan">
+                <label for="extintor-reemplazo">N Extintor Prestado / Garantía:</label>
+                <input type="text" id="extintor-reemplazo" placeholder="N de extintor que dejan">
             </div>
         </div>
         <div class="modal-actions">
@@ -194,7 +196,7 @@
                 <thead>
                     <tr style="background: #e2e8f0; color: #0f172a;">
                         <th>Fecha</th>
-                        <th>Nº Extintor</th>
+                        <th>N Extintor</th>
                         <th>Tipo de Movimiento</th>
                         <th>Personal</th>
                         <th>Detalle / Destino / Reemplazo</th>
@@ -221,8 +223,8 @@
                 <thead>
                     <tr style="background: #e2e8f0; color: #0f172a;">
                         <th>Fecha</th>
-                        <th>Nº Extintor</th>
-                        <th>Observación / Ubicación Actual</th>
+                        <th>N Extintor</th>
+                        <th>Observación / Ubicacion Actual</th>
                         <th>Acción</th>
                     </tr>
                 </thead>
@@ -234,9 +236,11 @@
         </div>
     </div>
 </div>
-
-<script src="datos.js"></script>
 <script>
+    const SUPABASE_URL = 'https://wlbwrjsbwxcullsaclon.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_iU6UHYMHkKG9fHI24342Jw_G7E0-S08';
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CLAVE_ADMIN = "Romero26"; 
 let isAdmin = sessionStorage.getItem('extintor_admin') === 'true';
 
@@ -293,10 +297,12 @@ const observationsModal = document.getElementById('observations-modal');
 const observationFormModal = document.getElementById('observation-form-modal');
 
 let currentItemIndex = null;
-let internalLoans = JSON.parse(localStorage.getItem('extintor_loans')) || {};
-let observacionesPublicas = JSON.parse(localStorage.getItem('extintor_observaciones')) || [];
-let outgoingLoans = JSON.parse(localStorage.getItem('extintor_outgoing_loans')) || {};
+let internalLoans = {};
+let observacionesPublicas = [];
+let outgoingLoans = {};
+let historialCompleto = [];
 let currentFilteredData = [];
+let misDatos = [];
 
 function parseDate(dateStr) { 
     if (!dateStr || dateStr.trim() === "") return null; 
@@ -310,25 +316,25 @@ function isExpired(dateStr) {
     return date ? date < new Date() : false; 
 }
 
-function hasActiveLoan(item) { return Boolean(internalLoans[item["Nº"]]); }
-function isOutgoingLoan(item) { return Boolean(outgoingLoans[item["Nº"]]); }
+function hasActiveLoan(item) { return Boolean(internalLoans[item["N"]]); }
+function isOutgoingLoan(item) { return Boolean(outgoingLoans[item["N"]]); }
 
 function getVigencia(item) { 
     if (hasActiveLoan(item)) return "En Mantenimiento"; 
-    return isExpired(item["F. VENC. "]) ? "Vencido" : "Vigente"; 
+    return isExpired(item["F. VENC."]) ? "Vencido" : "Vigente"; 
 }
 
 function getCondicion(item) { 
     if (hasActiveLoan(item)) return "Mantenimiento"; 
-    return isExpired(item["F. VENC. "]) ? "No Operativo" : "Operativo"; 
+    return isExpired(item["F. VENC."]) ? "No Operativo" : "Operativo"; 
 }
 
 function getEstado(item) {
     if (isOutgoingLoan(item)) return "Prestado";
     if (hasActiveLoan(item)) {
-        return internalLoans[item["Nº"]].esInterno ? "Almacén SST" : "Mantenimiento";
+        return internalLoans[item["N"]].esInterno ? "Almacén SST" : "Mantenimiento";
     }
-    return isExpired(item["F. VENC. "]) ? "No Disponible" : "Disponible";
+    return isExpired(item["F. VENC."]) ? "No Disponible" : "Disponible";
 }
 
 function getBadgeClass(status) { 
@@ -346,7 +352,7 @@ function applyFilters() {
     const selectedEstado = estadoFilter ? estadoFilter.value : "";
 
     currentFilteredData = misDatos.filter(item => {
-        if (selectedArea && item["ÁREA RESPONSABLE"] !== selectedArea) return false;
+        if (selectedArea && item["AREA RESPONSABLE"] !== selectedArea) return false;
         
         const vigenciaActual = getVigencia(item);
         if (selectedVigencia) {
@@ -382,9 +388,9 @@ function renderTable(data) {
         const row = document.createElement('tr');
         row.setAttribute('data-index', misDatos.indexOf(item));
         row.innerHTML = `
-            <td>${item["Nº"] || "-"}</td>
-            <td>${item["ÁREA RESPONSABLE"] || "-"}</td>
-            <td>${item["UBICACIÓN"] || "-"}</td>
+            <td>${item["N"] || "-"}</td>
+            <td>${item["AREA RESPONSABLE"] || "-"}</td>
+            <td>${item["UBICACION"] || "-"}</td>
             <td><span class="badge ${getBadgeClass(vigencia)}">${vigencia}</span></td>
             <td><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></td>
             <td><span class="badge ${getBadgeClass(estado)}">${estado}</span></td>
@@ -401,28 +407,7 @@ function verHistorial() {
     const historyBody = document.getElementById('history-body');
     historyBody.innerHTML = '';
 
-    let historial = [];
-    Object.keys(internalLoans).forEach(k => {
-        let mov = internalLoans[k];
-        historial.push({
-            fecha: mov.fecha,
-            no: k,
-            tipo: mov.esInterno ? 'Mantenimiento / Stock Interno' : 'Garantía Externa',
-            personal: mov.personal,
-            detalle: `Extintor Reemplazo/Garantía entregado: ${mov.reemplazo}`
-        });
-    });
-
-    Object.keys(outgoingLoans).forEach(k => {
-        let mov = outgoingLoans[k];
-        historial.push({
-            fecha: mov.fecha,
-            no: k,
-            tipo: 'Préstamo Interno (Salida)',
-            personal: mov.personal,
-            detalle: `Área Destino: ${mov.areaDestino} (Reemplaza al Nº ${mov.extintorReemplazado})`
-        });
-    });
+    const historial = historialCompleto;
 
     if (historial.length === 0) {
         historyBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">No hay movimientos registrados.</td></tr>`;
@@ -473,7 +458,7 @@ function renderizarListaObservacionesGenerales() {
 function abrirFormularioObservacion(itemIndex) {
     const item = misDatos[itemIndex];
     closeModal();
-    document.getElementById('obs-extintor-no').value = item["Nº"];
+    document.getElementById('obs-extintor-no').value = item["N"];
     document.getElementById('obs-texto-detalle').value = '';
     observationFormModal.classList.add('active');
 }
@@ -482,7 +467,7 @@ function closeObservationFormModal() {
     observationFormModal.classList.remove('active');
 }
 
-function guardarObservacionPublica() {
+async function guardarObservacionPublica() {
     const no = document.getElementById('obs-extintor-no').value.trim();
     const texto = document.getElementById('obs-texto-detalle').value.trim();
 
@@ -491,29 +476,54 @@ function guardarObservacionPublica() {
         return;
     }
 
+    const { data, error } = await supabaseClient
+        .from('observaciones')
+        .insert({
+            n_extintor: no,
+            texto: texto
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error al guardar observación:', error);
+        alert('No se pudo guardar la observación en Supabase: ' + error.message);
+        return;
+    }
+
     observacionesPublicas.push({
-        no: no,
-        texto: texto,
-        fecha: new Date().toLocaleDateString('es-ES')
+        id: data.id,
+        no: data.n_extintor,
+        texto: data.texto,
+        fecha: new Date(data.created_at).toLocaleDateString('es-ES')
     });
-    localStorage.setItem('extintor_observaciones', JSON.stringify(observacionesPublicas));
-    
+
     closeObservationFormModal();
-    alert("¡Observación registrada con éxito!");
+    alert("¡Observación registrada en Supabase!");
+    renderizarListaObservacionesGenerales();
 }
 
-function eliminarObservacion(index) {
+async function eliminarObservacion(index) {
     if (confirm("¿Desea eliminar esta observación?")) {
+        const observacion = observacionesPublicas[index];
+        const { error } = await supabaseClient
+            .from('observaciones')
+            .delete()
+            .eq('id', observacion.id);
+
+        if (error) {
+            console.error('Error al eliminar observación:', error);
+            alert('No se pudo eliminar la observación: ' + error.message);
+            return;
+        }
+
         observacionesPublicas.splice(index, 1);
-        localStorage.setItem('extintor_observaciones', JSON.stringify(observacionesPublicas));
         renderizarListaObservacionesGenerales();
     }
 }
 
 function closeHistoryModal() { historyModal.classList.remove('active'); }
 function closeObservationsModal() { observationsModal.classList.remove('active'); }
-
-let historialCompleto = JSON.parse(localStorage.getItem('extintor_historial')) || [];
 
 function exportarExcel() {
     let datosAExportar = currentFilteredData.length > 0 ? currentFilteredData : misDatos;
@@ -545,7 +555,7 @@ function exportarExcel() {
     htmlTabla += `</tbody></table><br><br>`;
 
     // 2. Sección de Observaciones Registradas
-    let observacionesActuales = JSON.parse(localStorage.getItem('extintor_observaciones')) || [];
+    let observacionesActuales = observacionesPublicas;
     
     htmlTabla += `
         <h3 style="color: #0284c7; font-family: sans-serif;">Reporte General de Observaciones</h3>
@@ -553,7 +563,7 @@ function exportarExcel() {
             <thead>
                 <tr style="background-color: #0284c7; color: #ffffff;">
                     <th>Fecha</th>
-                    <th>Nº Extintor</th>
+                    <th>N Extintor</th>
                     <th>Observación / Novedad Registrada</th>
                 </tr>
             </thead>
@@ -576,36 +586,13 @@ function exportarExcel() {
     htmlTabla += `</tbody></table><br><br>`;
 
     // 3. Sección de Historial de Movimientos
-    let historialCompleto = [];
-    Object.keys(internalLoans).forEach(k => {
-        let mov = internalLoans[k];
-        historialCompleto.push({
-            fecha: mov.fecha,
-            no: k,
-            tipo: mov.esInterno ? 'Mantenimiento / Stock Interno' : 'Garantía Externa',
-            personal: mov.personal,
-            detalle: `Extintor Reemplazo/Garantía entregado: ${mov.reemplazo}`
-        });
-    });
-
-    Object.keys(outgoingLoans).forEach(k => {
-        let mov = outgoingLoans[k];
-        historialCompleto.push({
-            fecha: mov.fecha,
-            no: k,
-            tipo: 'Préstamo Interno (Salida)',
-            personal: mov.personal,
-            detalle: `Área Destino: ${mov.areaDestino} (Reemplaza al Nº ${mov.extintorReemplazado})`
-        });
-    });
-
     htmlTabla += `
         <h3 style="color: #2563eb; font-family: sans-serif;">Historial de Movimientos (Préstamos y Garantías)</h3>
         <table border="1" style="font-family: sans-serif; font-size: 12px;">
             <thead>
                 <tr style="background-color: #2563eb; color: #ffffff;">
                     <th>Fecha</th>
-                    <th>Nº Extintor</th>
+                    <th>N Extintor</th>
                     <th>Tipo de Movimiento</th>
                     <th>Personal</th>
                     <th>Detalle / Destino / Reemplazo</th>
@@ -645,7 +632,7 @@ function exportarExcel() {
 
 // 2. Función para exportar el Reporte de Observaciones de forma independiente
 function exportarObservacionesExcel() {
-    let observacionesActuales = JSON.parse(localStorage.getItem('extintor_observaciones')) || [];
+    let observacionesActuales = observacionesPublicas;
 
     if (observacionesActuales.length === 0) {
         alert("No hay observaciones registradas para exportar.");
@@ -658,7 +645,7 @@ function exportarObservacionesExcel() {
             <thead>
                 <tr style="background-color: #0284c7; color: #ffffff;">
                     <th>Fecha</th>
-                    <th>Nº Extintor</th>
+                    <th>N Extintor</th>
                     <th>Observación / Novedad Registrada</th>
                 </tr>
             </thead>
@@ -690,8 +677,6 @@ function exportarObservacionesExcel() {
 
 // 3. Función para exportar el Historial de Movimientos de forma independiente
 function exportarHistorialExcel() {
-    let historialCompleto = JSON.parse(localStorage.getItem('extintor_historial')) || [];
-
     if (historialCompleto.length === 0) {
         alert("No hay movimientos registrados para exportar.");
         return;
@@ -703,7 +688,7 @@ function exportarHistorialExcel() {
             <thead>
                 <tr style="background-color: #2563eb; color: #ffffff;">
                     <th>Fecha</th>
-                    <th>Nº Extintor</th>
+                    <th>N Extintor</th>
                     <th>Tipo de Movimiento</th>
                     <th>Personal</th>
                     <th>Detalle</th>
@@ -742,8 +727,8 @@ function showModal(item) {
     const modalActions = document.getElementById('modal-actions');
     const vigencia = getVigencia(item);
     
-    const loanData = internalLoans[item["Nº"]];
-    const outgoingData = outgoingLoans[item["Nº"]];
+    const loanData = internalLoans[item["N"]];
+    const outgoingData = outgoingLoans[item["N"]];
 
     let loanInfoHTML = '';
     
@@ -760,8 +745,8 @@ function showModal(item) {
         loanInfoHTML = `
             <div class="modal-section" style="background-color: #fff7ed; border: 1px solid #fed7aa; padding: 12px; border-radius: 6px;">
                 <div class="modal-section-title" style="color: #9a3412;">Detalle de Salida por Préstamo Interno</div>
-                <div class="modal-row"><label>Salió prestado al Área:</label><value><strong>${limpiar(outgoingData.areaDestino)}</strong></value></div>
-                <div class="modal-row"><label>En reemplazo del Extintor Nº:</label><value><strong>${limpiar(outgoingData.extintorReemplazado)}</strong></value></div>
+                <div class="modal-row"><label>Salió prestado al Area:</label><value><strong>${limpiar(outgoingData.areaDestino)}</strong></value></div>
+                <div class="modal-row"><label>En reemplazo del Extintor N:</label><value><strong>${limpiar(outgoingData.extintorReemplazado)}</strong></value></div>
                 <div class="modal-row"><label>Entregado a / Solicitado por:</label><value><strong>${limpiar(outgoingData.personal)}</strong></value></div>
                 <div class="modal-row"><label>Fecha de Salida:</label><value>${limpiar(outgoingData.fecha)}</value></div>
             </div>`;
@@ -770,22 +755,22 @@ function showModal(item) {
     modalBody.innerHTML = `
         <div class="modal-section">
             <div class="modal-section-title">Información General</div>
-            <div class="modal-row"><label>Nº Extintor:</label><value>${limpiar(item["Nº"])}</value></div>
-            <div class="modal-row"><label>N° Serie Actual:</label><value>${limpiar(item["N° SERIE ACTUAL"])}</value></div>
+            <div class="modal-row"><label>N Extintor:</label><value>${limpiar(item["N"])}</value></div>
+            <div class="modal-row"><label>N Serie Actual:</label><value>${limpiar(item["N SERIE ACTUAL"])}</value></div>
             <div class="modal-row"><label>Tipo:</label><value>${limpiar(item["TIPO"])}</value></div>
             <div class="modal-row"><label>Capacidad:</label><value>${limpiar(item["CAP."])}</value></div>
         </div>
         <div class="modal-section">
-            <div class="modal-section-title">Ubicación</div>
-            <div class="modal-row"><label>Área Responsable:</label><value>${limpiar(item["ÁREA RESPONSABLE"])}</value></div>
-            <div class="modal-row"><label>Ubicación:</label><value>${limpiar(item["UBICACIÓN"])}</value></div>
+            <div class="modal-section-title">Ubicacion</div>
+            <div class="modal-row"><label>Area Responsable:</label><value>${limpiar(item["AREA RESPONSABLE"])}</value></div>
+            <div class="modal-row"><label>Ubicacion:</label><value>${limpiar(item["UBICACION"])}</value></div>
         </div>
         <div class="modal-section">
             <div class="modal-section-title">Estado y Vigencia</div>
             <div class="modal-row"><label>Vigencia:</label><value><span class="badge ${getBadgeClass(vigencia)}">${vigencia}</span></value></div>
-            <div class="modal-row"><label>Condición:</label><value><span class="badge ${getBadgeClass(getCondicion(item))}">${getCondicion(item)}</span></value></div>
+            <div class="modal-row"><label>Condicion:</label><value><span class="badge ${getBadgeClass(getCondicion(item))}">${getCondicion(item)}</span></value></div>
             <div class="modal-row"><label>Estado:</label><value><span class="badge ${getBadgeClass(getEstado(item))}">${getEstado(item)}</span></value></div>
-            <div class="modal-row"><label>Fecha Vencimiento:</label><value>${limpiar(item["F. VENC. "])}</value></div>
+            <div class="modal-row"><label>Fecha Vencimiento:</label><value>${limpiar(item["F. VENC."])}</value></div>
         </div>
         ${loanInfoHTML}`;
 
@@ -817,7 +802,7 @@ function openLoanForm(itemIndex) {
     loanModal.classList.add('active');
 }
 
-function guardarCambio() {
+async function guardarCambio() {
     const personal = document.getElementById('personal-cambio').value.trim();
     const reemplazo = document.getElementById('extintor-reemplazo').value.trim();
 
@@ -827,64 +812,108 @@ function guardarCambio() {
     }
 
     const item = misDatos[currentItemIndex];
-    const itemNo = item["Nº"];
+    const itemNo = String(item["N"]);
     const esVigente = getVigencia(item) === "Vigente";
 
-    historialCompleto.push({
-        fecha: new Date().toLocaleDateString('es-ES'),
-        no: itemNo,
-        tipo: esVigente ? 'Préstamo Interno (Salida)' : 'Garantía Externa',
-        personal: personal,
-        detalle: esVigente ? `Área Destino: ${item["ÁREA RESPONSABLE"]} (Reemplazo: ${reemplazo})` : `Extintor Reemplazo: ${reemplazo}`
-    });
-    localStorage.setItem('extintor_historial', JSON.stringify(historialCompleto));
+    // 1. Actualizamos el registro del extintor actual en Supabase
+    // Usamos los campos que definiste en tu tabla: 'prestado' y 'ubicacion_prestamo'
+    const { error } = await supabaseClient
+        .from('Extintores')
+        .update({
+            prestado: 'SI',
+            ubicacion_prestamo: `Personal: ${personal} | Reemplazo: ${reemplazo} | ${esVigente ? 'Préstamo Interno' : 'Garantía Externa'}`
+        })
+        .eq('N', itemNo);
 
-    internalLoans[itemNo] = { personal, reemplazo, esInterno: esVigente, fecha: new Date().toLocaleDateString('es-ES') };
-    localStorage.setItem('extintor_loans', JSON.stringify(internalLoans));
+    if (error) {
+        console.error("Error al actualizar en Supabase:", error);
+        alert("Hubo un error al guardar en la base de datos.");
+        return;
+    }
 
+    // 2. Si es préstamo interno, también debemos actualizar el extintor que sirve como reemplazo
     if (esVigente) {
-        const extintorStock = misDatos.find(e => String(e["Nº"]).trim() === String(reemplazo).trim());
+        const extintorStock = misDatos.find(e => String(e["N"]).trim() === String(reemplazo).trim());
         if (extintorStock) {
-            outgoingLoans[extintorStock["Nº"]] = {
-                areaDestino: item["ÁREA RESPONSABLE"],
-                extintorReemplazado: itemNo,
-                personal: personal,
-                fecha: new Date().toLocaleDateString('es-ES')
-            };
-            localStorage.setItem('extintor_outgoing_loans', JSON.stringify(outgoingLoans));
+            await supabaseClient
+                .from('Extintores')
+                .update({
+                    prestado: 'SI',
+                    ubicacion_prestamo: `En préstamo a: ${item["AREA RESPONSABLE"]} (Reemplaza al N ${itemNo})`
+                })
+                .eq('N', String(extintorStock["N"]));
         }
     }
 
+    const { error: movimientoError } = await supabaseClient
+        .from('movimientos')
+        .insert({
+            n_extintor: itemNo,
+            tipo: esVigente ? 'salida' : 'garantia',
+            personal: personal,
+            reemplazo: reemplazo,
+            area_destino: esVigente ? item["AREA RESPONSABLE"] : null,
+            extintor_reemplazado: esVigente ? itemNo : null,
+            activo: true
+        });
+
+    if (movimientoError) {
+        console.error("Error al guardar movimiento:", movimientoError);
+        alert("El extintor se actualizó, pero no se pudo guardar el historial: " + movimientoError.message);
+        return;
+    }
+
+    // 3. Finalizamos procesos
+    alert("Cambio registrado exitosamente en la nube.");
+    
     closeLoanModal();
+    
+    // Recargamos los datos desde Supabase para ver los cambios reflejados
+    await refreshData();
+    await cargarDatosSecundarios();
     applyFilters();
 }
 
-function finalizarPrestamo(itemIndex) {
+async function finalizarPrestamo(itemIndex) {
     const item = misDatos[itemIndex];
-    const itemNo = item["Nº"];
-    const loanData = internalLoans[itemNo];
+    const itemNo = String(item["N"]);
 
-    historialCompleto.push({
-        fecha: new Date().toLocaleDateString('es-ES'),
-        no: itemNo,
-        tipo: 'Cierre de Préstamo/Garantía',
-        personal: '-',
-        detalle: 'El extintor ha retornado a su ubicación original.'
-    });
-    localStorage.setItem('extintor_historial', JSON.stringify(historialCompleto));
+    // Actualizamos en Supabase para vaciar los datos de préstamo
+    const { error } = await supabaseClient
+        .from('Extintores')
+        .update({
+            prestado: null,
+            ubicacion_prestamo: null
+        })
+        .eq('N', itemNo);
 
-    if (loanData && loanData.esInterno) {
-        const extintorStock = misDatos.find(e => String(e["Nº"]).trim() === String(loanData.reemplazo).trim());
-        if (extintorStock && outgoingLoans[extintorStock["Nº"]]) {
-            delete outgoingLoans[extintorStock["Nº"]];
-            localStorage.setItem('extintor_outgoing_loans', JSON.stringify(outgoingLoans));
-        }
+    if (error) {
+        console.error("Error al finalizar préstamo:", error);
+        alert("No se pudo actualizar la base de datos.");
+        return;
     }
 
-    delete internalLoans[itemNo];
-    localStorage.setItem('extintor_loans', JSON.stringify(internalLoans));
+    await supabaseClient
+        .from('movimientos')
+        .update({ activo: false })
+        .eq('n_extintor', itemNo)
+        .eq('activo', true);
 
+    await supabaseClient
+        .from('movimientos')
+        .insert({
+            n_extintor: itemNo,
+            tipo: 'retorno',
+            personal: 'Sistema',
+            detalle: 'Préstamo finalizado y extintor retornado',
+            activo: false
+        });
+
+    alert("Préstamo finalizado correctamente.");
+    
     closeModal();
+    await refreshData();
+    await cargarDatosSecundarios();
     applyFilters();
 }
 
@@ -897,22 +926,165 @@ historyModal.addEventListener('click', (e) => { if (e.target === historyModal) c
 observationsModal.addEventListener('click', (e) => { if (e.target === observationsModal) closeObservationsModal(); });
 observationFormModal.addEventListener('click', (e) => { if (e.target === observationFormModal) closeObservationFormModal(); });
 
+// Listeners de filtros
 areaFilter.addEventListener('change', applyFilters);
 vigenciaFilter.addEventListener('change', applyFilters);
 if (estadoFilter) {
     estadoFilter.addEventListener('change', applyFilters);
 }
 
-const areas = [...new Set(misDatos.map(item => item["ÁREA RESPONSABLE"]).filter(Boolean))].sort();
-areas.forEach(area => {
-    const option = document.createElement('option');
-    option.value = area;
-    option.textContent = area;
-    areaFilter.appendChild(option);
-});
+// Función para refrescar datos tras un cambio
+async function refreshData() {
+    const { data, error } = await supabaseClient
+        .from('Extintores')
+        .select('*');
 
-currentFilteredData = misDatos;
-renderTable(misDatos);
+    if (error) {
+        console.error("Error al refrescar datos:", error);
+        return;
+    }
+
+    if (data) {
+        misDatos = data;
+    }
+}
+
+// Función de inicio que carga desde Supabase y dibuja la tabla por primera vez
+// Función de inicio que carga desde Supabase y dibuja la tabla por primera vez
+async function cargarDatosSecundarios() {
+    const [
+        { data: observaciones, error: observacionesError },
+        { data: movimientos, error: movimientosError }
+    ] = await Promise.all([
+        supabaseClient
+            .from('observaciones')
+            .select('*')
+            .order('created_at', { ascending: false }),
+        supabaseClient
+            .from('movimientos')
+            .select('*')
+            .order('created_at', { ascending: false })
+    ]);
+
+    if (observacionesError) {
+        console.error('Error cargando observaciones:', observacionesError);
+    } else {
+        observacionesPublicas = (observaciones || []).map(o => ({
+            id: o.id,
+            no: o.n_extintor,
+            texto: o.texto,
+            fecha: new Date(o.created_at).toLocaleDateString('es-ES')
+        }));
+    }
+
+    if (movimientosError) {
+        console.error('Error cargando movimientos:', movimientosError);
+        return;
+    }
+
+    internalLoans = {};
+    outgoingLoans = {};
+    historialCompleto = [];
+
+    (movimientos || []).forEach(mov => {
+        const fecha = new Date(mov.created_at).toLocaleString('es-ES');
+        const tipoTexto =
+            mov.tipo === 'salida'
+                ? 'Préstamo Interno (Salida)'
+                : mov.tipo === 'garantia'
+                    ? 'Garantía Externa'
+                    : 'Retorno';
+
+        historialCompleto.push({
+            fecha,
+            no: mov.n_extintor,
+            tipo: tipoTexto,
+            personal: mov.personal || '-',
+            detalle: mov.detalle ||
+                (mov.tipo === 'salida'
+                    ? `Área Destino: ${mov.area_destino || '-'} (Reemplaza al N ${mov.extintor_reemplazado || '-'})`
+                    : `Extintor Reemplazo/Garantía entregado: ${mov.reemplazo || '-'}`)
+        });
+
+        if (!mov.activo) return;
+
+        if (mov.tipo === 'salida') {
+            outgoingLoans[mov.n_extintor] = {
+                personal: mov.personal,
+                areaDestino: mov.area_destino,
+                extintorReemplazado: mov.extintor_reemplazado,
+                fecha
+            };
+        } else if (mov.tipo === 'garantia') {
+            internalLoans[mov.n_extintor] = {
+                personal: mov.personal,
+                reemplazo: mov.reemplazo,
+                esInterno: false,
+                fecha
+            };
+        }
+    });
+}
+
+async function iniciarApp() {
+    const { data, error } = await supabaseClient
+        .from('Extintores')
+        .select('*');
+
+    if (error) {
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Error de Supabase: ${error.message}</td></tr>`;
+        return; 
+    }
+
+    if (!data || data.length === 0) {
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="6" style="text-align:center;">La tabla de Supabase está vacía o no tiene registros</td></tr>`;
+        return;
+    }
+
+    misDatos = data;
+    await cargarDatosSecundarios();
+
+    // Rellenamos el selector de áreas automáticamente con los datos de Supabase
+    const areas = [...new Set(misDatos.map(item => item["AREA RESPONSABLE"]).filter(Boolean))].sort();
+    
+    areaFilter.innerHTML = '<option value="">Areas</option>';
+    areas.forEach(area => {
+        const option = document.createElement('option');
+        option.value = area;
+        option.textContent = area;
+        areaFilter.appendChild(option);
+    });
+
+    // Dibujamos la tabla por primera vez
+    renderTable(misDatos);
+}
+
+// Ejecutamos la aplicación al cargar la página
+iniciarApp();
+async function debugData() {
+    const { data, error } = await supabaseClient.from('Extintores').select('*');
+    if (error) {
+        alert("Error de conexión Supabase: " + error.message);
+    } else if (data && data.length > 0) {
+        alert("¡Éxito! Columnas reales en tu base de datos: " + Object.keys(data[0]).join(", "));
+    } else {
+        alert("La consulta funcionó, pero tu tabla en Supabase está vacía.");
+    }
+}
+async function verificarTodo() {
+    try {
+        const { data, error } = await supabaseClient.from('Extintores').select('*');
+        if (error) {
+            alert("Error Supabase: " + error.message);
+        } else if (data.length === 0) {
+            alert("Conexión OK, pero la tabla está vacía. ¡Debes cargar datos!");
+        } else {
+            alert("Conexión OK. Tenemos " + data.length + " extintores.");
+            console.log("Datos:", data);
+        }
+    } catch(e) {
+        alert("Error crítico: " + e.message);
+    }
+}
 </script>
-</body>
 </html>
