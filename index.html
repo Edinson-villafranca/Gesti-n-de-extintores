@@ -15,6 +15,7 @@
         .container { max-width: 100%; margin: 20px auto; padding: 0 20px; }
         .filter-box { margin-bottom: 20px; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 16px; width: 100%; max-width: 400px; }
         .filters-container { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+        .number-filter { margin-bottom: 0; max-width: 230px; }
         
         .table-container { background: white; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
@@ -60,7 +61,69 @@
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: bold; color: #0f172a; margin-bottom: 5px; }
         .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+        .editor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+        .editor-field { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; }
+        .editor-field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px; }
+        .editor-field input, .editor-field textarea { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 13px; }
+        .editor-field textarea { min-height: 70px; resize: vertical; }
+
+        /* ===== Calendario de rango de fechas ===== */
+        .date-filter-wrap { position: relative; }
+        .date-trigger {
+            height: 44px; padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 6px;
+            background: #fff; color: #1e293b; font-size: 14px; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: space-between;
+            gap: 10px; min-width: 230px; max-width: 280px;
+        }
+        .date-trigger:hover { border-color: #0284c7; }
+        .date-trigger .calendar-icon { font-size: 16px; color: #64748b; }
+        .date-trigger .chevron { font-size: 12px; color: #64748b; transition: transform 0.2s; }
+        .date-trigger.open .chevron { transform: rotate(180deg); }
+
+        .calendar-popup {
+            display: none; position: absolute; z-index: 50; top: 52px; left: 0;
+            width: 320px; padding: 16px; background: #fff;
+            border: 1px solid #cbd5e1; border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(15,23,42,.18);
+        }
+        .calendar-popup.open { display: block; }
+
+        .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .calendar-header strong { font-size: 15px; text-transform: capitalize; color: #0f172a; }
+        .calendar-nav {
+            width: 32px; height: 32px; border: 0; background: #f1f5f9;
+            border-radius: 6px; color: #334155; cursor: pointer; font-size: 18px;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .calendar-nav:hover { background: #e0f2fe; color: #0369a1; }
+
+        .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .calendar-weekdays { margin-bottom: 5px; }
+        .calendar-weekdays span { text-align: center; color: #64748b; font-size: 11px; font-weight: 700; }
+
+        .calendar-days button {
+            height: 34px; border: 0; background: transparent; border-radius: 6px;
+            color: #334155; cursor: pointer; font-size: 13px;
+        }
+        .calendar-days button:hover { background: #e0f2fe; }
+        .calendar-days button.today { font-weight: 700; box-shadow: inset 0 0 0 1px #38bdf8; }
+        .calendar-days button.selected { background: #0284c7; color: #fff; font-weight: 700; }
+        .calendar-days button.in-range { background: #e0f2fe; color: #075985; }
+        .calendar-days button.range-start { border-radius: 6px 0 0 6px; }
+        .calendar-days button.range-end { border-radius: 0 6px 6px 0; }
+        .calendar-days button.selected.range-start.range-end { border-radius: 6px; }
+
+        .calendar-status { min-height: 20px; margin: 12px 0 8px; color: #64748b; font-size: 12px; }
+        .calendar-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+        .clear-dates-btn { border: 0; background: none; color: #dc2626; font-weight: 700; font-size: 13px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .clear-dates-btn:hover { background: #fee2e2; }
+        .apply-dates-btn { border: 0; background: #0284c7; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; padding: 6px 14px; border-radius: 6px; }
+        .apply-dates-btn:hover { background: #0369a1; }
+        .apply-dates-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
     </style>
+  <meta property="og:image" content="https://bolt.new/static/og_default.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://bolt.new/static/og_default.png">
 </head>
 <body>
 
@@ -86,9 +149,40 @@
 </header>
 <div class="container">
     <div class="filters-container">
-        <select id="area-filter" class="filter-box" style="margin-bottom:0; max-width:250px;">
-            <option value="">Areas</option>
-        </select>
+        <input id="area-filter" class="filter-box" list="area-options"
+            style="margin-bottom:0; max-width:250px;"
+            placeholder="Buscar área..." autocomplete="off">
+        <datalist id="area-options"></datalist>
+        <input id="numero-filter" class="filter-box number-filter" type="search"
+            placeholder="Buscar por N de extintor..." autocomplete="off">
+
+        <!-- ===== Filtro de rango de fechas con calendario ===== -->
+        <div class="date-filter-wrap">
+            <button id="date-trigger" class="date-trigger" type="button" aria-expanded="false">
+                <span style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                    <span class="calendar-icon">📅</span>
+                    <span id="date-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Rango de vencimiento</span>
+                </span>
+                <span class="chevron">▼</span>
+            </button>
+            <div id="calendar-popup" class="calendar-popup" role="dialog" aria-label="Seleccionar rango de vencimiento">
+                <div class="calendar-header">
+                    <button id="cal-prev" class="calendar-nav" type="button" aria-label="Mes anterior">‹</button>
+                    <strong id="cal-month-label"></strong>
+                    <button id="cal-next" class="calendar-nav" type="button" aria-label="Mes siguiente">›</button>
+                </div>
+                <div class="calendar-weekdays">
+                    <span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sa</span><span>Do</span>
+                </div>
+                <div id="cal-days" class="calendar-days"></div>
+                <div id="cal-status" class="calendar-status">Selecciona la fecha de inicio</div>
+                <div class="calendar-footer">
+                    <button id="cal-clear" class="clear-dates-btn" type="button">Limpiar filtro</button>
+                    <button id="cal-apply" class="apply-dates-btn" type="button" disabled>Aplicar</button>
+                </div>
+            </div>
+        </div>
+
         <select id="vigencia-filter" class="filter-box" style="margin-bottom:0; max-width:200px;">
             <option value="">Vigencia</option>
             <option value="Vigente">Vigente</option>
@@ -156,6 +250,24 @@
         <div class="modal-actions">
             <button class="btn btn-primary" onclick="guardarObservacionPublica()">Guardar Observación</button>
             <button class="btn btn-secondary" onclick="closeObservationFormModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editor (solo administrador) -->
+<div id="editor-modal" class="modal">
+    <div class="modal-content" style="max-width: 1000px;">
+        <div class="modal-header">
+            <h2>Editor de Extintor</h2>
+            <button class="modal-close" onclick="closeEditorModal()">&times;</button>
+        </div>
+        <p style="margin-top:0; color:#64748b; font-size:13px;">
+            Modifica cualquier dato del registro y guarda todos los cambios juntos.
+        </p>
+        <div id="editor-body" class="editor-grid"></div>
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="guardarEdicion()">Guardar cambios</button>
+            <button class="btn btn-secondary" onclick="closeEditorModal()">Cancelar</button>
         </div>
     </div>
 </div>
@@ -239,6 +351,10 @@
 <script>
     const SUPABASE_URL = 'https://wlbwrjsbwxcullsaclon.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_iU6UHYMHkKG9fHI24342Jw_G7E0-S08';
+// Modo de pruebas: estas tablas no modifican las tablas originales.
+const TABLA_EXTINTORES = 'Extintores_Prueba';
+const TABLA_OBSERVACIONES = 'observaciones_prueba';
+const TABLA_MOVIMIENTOS = 'movimientos_prueba';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CLAVE_ADMIN = "Romero26"; 
@@ -295,46 +411,168 @@ const loanModal = document.getElementById('loan-modal');
 const historyModal = document.getElementById('history-modal');
 const observationsModal = document.getElementById('observations-modal');
 const observationFormModal = document.getElementById('observation-form-modal');
+const editorModal = document.getElementById('editor-modal');
+const numeroFilter = document.getElementById('numero-filter');
+const areaOptions = document.getElementById('area-options');
 
 let currentItemIndex = null;
 let internalLoans = {};
 let observacionesPublicas = [];
 let outgoingLoans = {};
+let externalLoans = {};
 let historialCompleto = [];
 let currentFilteredData = [];
 let misDatos = [];
 
-function parseDate(dateStr) { 
-    if (!dateStr || dateStr.trim() === "") return null; 
-    const parts = dateStr.split('/'); 
-    if (parts.length !== 2) return null; 
-    return new Date(parseInt('20' + parts[1]), parseInt(parts[0]) - 1, 1); 
+// Formatos admitidos:
+// 08/27   = agosto de 2027
+// 08/2027 = agosto de 2027
+// 27-Aug   = agosto de 2027
+// 2027-Aug = agosto de 2027
+const MESES = {
+    jan: 1, enero: 1,
+    feb: 2, febrero: 2,
+    mar: 3, marzo: 3,
+    apr: 4, abr: 4, abril: 4,
+    may: 5, mayo: 5,
+    jun: 6, junio: 6,
+    jul: 7, julio: 7,
+    aug: 8, ago: 8, agosto: 8,
+    sep: 9, sept: 9, septiembre: 9,
+    oct: 10, octubre: 10,
+    nov: 11, noviembre: 11,
+    dec: 12, dic: 12, diciembre: 12
+};
+
+function getMonthYear(dateStr) {
+    if (!dateStr || String(dateStr).trim() === "") return null;
+
+    const value = String(dateStr).trim().toLowerCase()
+        .replace(/\./g, '')
+        .replace(/\s+/g, '');
+
+    // Formato numérico: MM/AA, MM/AAAA o MM-AA
+    let match = value.match(/^(\d{1,2})[\/-](\d{2}|\d{4})$/);
+    if (match) {
+        const month = Number(match[1]);
+        let year = Number(match[2]);
+
+        if (month >= 1 && month <= 12) {
+            if (year < 100) year += 2000;
+            return { month, year };
+        }
+    }
+
+    // Formato de Supabase actual: AA-MMM o AAAA-MMM
+    match = value.match(/^(\d{2}|\d{4})[\/-]([a-záéíóúñ]+)$/i);
+    if (match) {
+        let year = Number(match[1]);
+        const month = MESES[match[2]];
+
+        if (month) {
+            if (year < 100) year += 2000;
+            return { month, year };
+        }
+    }
+
+    // También admite MMM-AA o MMM-AAAA
+    match = value.match(/^([a-záéíóúñ]+)[\/-](\d{2}|\d{4})$/i);
+    if (match) {
+        let year = Number(match[2]);
+        const month = MESES[match[1]];
+
+        if (month) {
+            if (year < 100) year += 2000;
+            return { month, year };
+        }
+    }
+
+    return null;
 }
 
-function isExpired(dateStr) { 
-    const date = parseDate(dateStr); 
-    return date ? date < new Date() : false; 
+function parseDate(dateStr) {
+    const result = getMonthYear(dateStr);
+    if (!result) return null;
+
+    // Se vence al finalizar el mes indicado.
+    return new Date(result.year, result.month, 0, 23, 59, 59, 999);
+}
+
+function formatMonthYear(dateStr) {
+    const result = getMonthYear(dateStr);
+    if (!result) return dateStr || "-";
+
+    return `${String(result.month).padStart(2, '0')}/${result.year}`;
+}
+
+function calcularVencimientoPorPrestamo() {
+    const nuevaFecha = new Date();
+    nuevaFecha.setMonth(nuevaFecha.getMonth() + 13);
+    return `${String(nuevaFecha.getMonth() + 1).padStart(2, '0')}/${nuevaFecha.getFullYear()}`;
+}
+
+function isExpired(dateStr) {
+    const date = parseDate(dateStr);
+    return date ? date < new Date() : false;
+}
+
+function isItemExpired(item) {
+    return isExpired(item["F. VENC."]) ||
+           isExpired(item["ph_vencimiento"]);
 }
 
 function hasActiveLoan(item) { return Boolean(internalLoans[item["N"]]); }
 function isOutgoingLoan(item) { return Boolean(outgoingLoans[item["N"]]); }
+function hasActiveExternalLoan(item) { return Boolean(externalLoans[item["N"]]); }
+
+function getMonthIndex(dateStr) {
+    const isoMonth = String(dateStr ?? "").match(/^(\d{4})-(\d{2})$/);
+    if (isoMonth) {
+        const month = Number(isoMonth[2]);
+        if (month >= 1 && month <= 12) {
+            return Number(isoMonth[1]) * 12 + month;
+        }
+    }
+
+    const parsed = getMonthYear(dateStr);
+    return parsed ? parsed.year * 12 + parsed.month : null;
+}
+
+function itemMatchesDateRange(item, desde, hasta) {
+    if (!desde && !hasta) return true;
+
+    const inicio = desde ? getMonthIndex(desde) : null;
+    const fin = hasta ? getMonthIndex(hasta) : null;
+    if (inicio !== null && fin !== null && inicio > fin) return false;
+
+    const fechasItem = [item["F. VENC."], item["ph_vencimiento"]]
+        .map(getMonthIndex)
+        .filter(valor => valor !== null);
+
+    return fechasItem.some(fecha => {
+        if (inicio !== null && fecha < inicio) return false;
+        if (fin !== null && fecha > fin) return false;
+        return true;
+    });
+}
 
 function getVigencia(item) { 
-    if (hasActiveLoan(item)) return "En Mantenimiento"; 
-    return isExpired(item["F. VENC."]) ? "Vencido" : "Vigente"; 
+    if (hasActiveLoan(item) || hasActiveExternalLoan(item)) return "En Mantenimiento"; 
+    return isItemExpired(item) ? "Vencido" : "Vigente"; 
 }
 
 function getCondicion(item) { 
-    if (hasActiveLoan(item)) return "Mantenimiento"; 
-    return isExpired(item["F. VENC."]) ? "No Operativo" : "Operativo"; 
+    if (hasActiveLoan(item) || hasActiveExternalLoan(item)) return "Mantenimiento"; 
+    return isItemExpired(item) ? "No Operativo" : "Operativo"; 
 }
 
 function getEstado(item) {
     if (isOutgoingLoan(item)) return "Prestado";
-    if (hasActiveLoan(item)) {
+    if (hasActiveLoan(item) || hasActiveExternalLoan(item)) {
+        if (hasActiveExternalLoan(item)) return "Mantenimiento";
         return internalLoans[item["N"]].esInterno ? "Almacén SST" : "Mantenimiento";
     }
-    return isExpired(item["F. VENC."]) ? "No Disponible" : "Disponible";
+    return isItemExpired(item) ? "No Disponible" : "Disponible";
 }
 
 function getBadgeClass(status) { 
@@ -346,13 +584,195 @@ function getBadgeClass(status) {
 
 function limpiar(valor) { return (valor !== undefined && valor !== null && String(valor).trim() !== "") ? valor : "-"; }
 
+// ===== Estado del calendario de rango =====
+let calRangeStart = null; // Date
+let calRangeEnd = null;   // Date
+let calVisibleMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let calPendingDesde = "";
+let calPendingHasta = "";
+
+const dateTrigger = document.getElementById('date-trigger');
+const calendarPopup = document.getElementById('calendar-popup');
+const dateLabel = document.getElementById('date-label');
+const calDaysContainer = document.getElementById('cal-days');
+const calMonthLabel = document.getElementById('cal-month-label');
+const calStatus = document.getElementById('cal-status');
+const calClearBtn = document.getElementById('cal-clear');
+const calApplyBtn = document.getElementById('cal-apply');
+
+const monthFormatter = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
+const dateFormatter = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+function dateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function sameDay(a, b) {
+    return a && b && dateKey(a) === dateKey(b);
+}
+
+function toIsoMonth(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function renderCalendar() {
+    calMonthLabel.textContent = monthFormatter.format(calVisibleMonth);
+    calDaysContainer.innerHTML = '';
+
+    const year = calVisibleMonth.getFullYear();
+    const month = calVisibleMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const offset = (firstDay.getDay() + 6) % 7; // Lunes = 0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 0; i < offset; i++) {
+        const spacer = document.createElement('span');
+        const prevMonthDay = new Date(year, month, -offset + i + 1).getDate();
+        spacer.textContent = prevMonthDay;
+        spacer.style.textAlign = 'center';
+        spacer.style.color = '#cbd5e1';
+        spacer.style.fontSize = '13px';
+        calDaysContainer.appendChild(spacer);
+    }
+
+    const today = new Date();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const current = new Date(year, month, day);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = day;
+
+        if (sameDay(current, today)) btn.classList.add('today');
+
+        if (sameDay(current, calRangeStart) || sameDay(current, calRangeEnd)) {
+            btn.classList.add('selected');
+        }
+
+        if (calRangeStart && calRangeEnd && current > calRangeStart && current < calRangeEnd) {
+            btn.classList.add('in-range');
+        }
+
+        if (sameDay(current, calRangeStart)) btn.classList.add('range-start');
+        if (sameDay(current, calRangeEnd)) btn.classList.add('range-end');
+
+        btn.addEventListener('click', (e) => { e.stopPropagation(); selectCalendarDate(current); });
+        calDaysContainer.appendChild(btn);
+    }
+}
+
+function selectCalendarDate(date) {
+    if (!calRangeStart || (calRangeStart && calRangeEnd)) {
+        // Inicia nuevo rango
+        calRangeStart = date;
+        calRangeEnd = null;
+        calStatus.textContent = 'Ahora selecciona la fecha final';
+        calApplyBtn.disabled = true;
+    } else {
+        // Segundo clic
+        if (date < calRangeStart) {
+            calRangeEnd = calRangeStart;
+            calRangeStart = date;
+        } else if (sameDay(date, calRangeStart)) {
+            // Mismo día: rango de un solo día
+            calRangeEnd = date;
+        } else {
+            calRangeEnd = date;
+        }
+        calStatus.textContent = `Rango: ${dateFormatter.format(calRangeStart)} - ${dateFormatter.format(calRangeEnd)}`;
+        calApplyBtn.disabled = false;
+    }
+
+    updateDateLabel();
+    renderCalendar();
+}
+
+function updateDateLabel() {
+    if (calRangeStart && calRangeEnd) {
+        dateLabel.textContent = `${dateFormatter.format(calRangeStart)} - ${dateFormatter.format(calRangeEnd)}`;
+    } else if (calRangeStart && !calRangeEnd) {
+        dateLabel.textContent = `${dateFormatter.format(calRangeStart)} - ...`;
+    } else {
+        dateLabel.textContent = 'Rango de vencimiento';
+    }
+}
+
+function openCalendar() {
+    calendarPopup.classList.add('open');
+    dateTrigger.classList.add('open');
+    dateTrigger.setAttribute('aria-expanded', 'true');
+}
+
+function closeCalendar() {
+    calendarPopup.classList.remove('open');
+    dateTrigger.classList.remove('open');
+    dateTrigger.setAttribute('aria-expanded', 'false');
+}
+
+function clearCalendarRange() {
+    calRangeStart = null;
+    calRangeEnd = null;
+    calPendingDesde = "";
+    calPendingHasta = "";
+    calStatus.textContent = 'Selecciona la fecha de inicio';
+    calApplyBtn.disabled = true;
+    updateDateLabel();
+    renderCalendar();
+    applyFilters();
+}
+
+dateTrigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (calendarPopup.classList.contains('open')) {
+        closeCalendar();
+    } else {
+        openCalendar();
+    }
+});
+
+document.getElementById('cal-prev').addEventListener('click', (e) => {
+    e.stopPropagation();
+    calVisibleMonth.setMonth(calVisibleMonth.getMonth() - 1);
+    renderCalendar();
+});
+
+document.getElementById('cal-next').addEventListener('click', (e) => {
+    e.stopPropagation();
+    calVisibleMonth.setMonth(calVisibleMonth.getMonth() + 1);
+    renderCalendar();
+});
+
+calClearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearCalendarRange();
+});
+
+calApplyBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (calRangeStart && calRangeEnd) {
+        calPendingDesde = toIsoMonth(calRangeStart);
+        calPendingHasta = toIsoMonth(calRangeEnd);
+        closeCalendar();
+        applyFilters();
+    }
+});
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.date-filter-wrap')) closeCalendar();
+});
+
 function applyFilters() {
     const selectedArea = areaFilter.value;
+    const selectedNumero = numeroFilter ? numeroFilter.value.trim().toLowerCase() : "";
+    const selectedDesde = calPendingDesde || "";
+    const selectedHasta = calPendingHasta || "";
     const selectedVigencia = vigenciaFilter.value;
     const selectedEstado = estadoFilter ? estadoFilter.value : "";
 
     currentFilteredData = misDatos.filter(item => {
         if (selectedArea && item["AREA RESPONSABLE"] !== selectedArea) return false;
+        if (selectedNumero && !String(item["N"] ?? "").toLowerCase().includes(selectedNumero)) return false;
+        if (!itemMatchesDateRange(item, selectedDesde, selectedHasta)) return false;
         
         const vigenciaActual = getVigencia(item);
         if (selectedVigencia) {
@@ -373,6 +793,30 @@ function applyFilters() {
     renderTable(currentFilteredData);
 }
 
+function compararNumeros(a, b) {
+    const numeroA = Number(String(a["N"] ?? "").replace(",", "."));
+    const numeroB = Number(String(b["N"] ?? "").replace(",", "."));
+    if (Number.isFinite(numeroA) && Number.isFinite(numeroB) && numeroA !== numeroB) {
+        return numeroA - numeroB;
+    }
+    return String(a["N"] ?? "").localeCompare(String(b["N"] ?? ""), "es", { numeric: true });
+}
+
+function poblarAreas() {
+    const areas = [...new Set(
+        misDatos
+            .map(item => String(item["AREA RESPONSABLE"] ?? "").trim())
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+
+    areaOptions.innerHTML = "";
+    areas.forEach(area => {
+        const option = document.createElement("option");
+        option.value = area;
+        areaOptions.appendChild(option);
+    });
+}
+
 function renderTable(data) {
     tableBody.innerHTML = "";
     if(data.length === 0) {
@@ -380,7 +824,7 @@ function renderTable(data) {
         return;
     }
 
-    data.forEach((item) => {
+    [...data].sort(compararNumeros).forEach((item) => {
         const vigencia = getVigencia(item);
         const condicion = getCondicion(item);
         const estado = getEstado(item);
@@ -477,7 +921,7 @@ async function guardarObservacionPublica() {
     }
 
     const { data, error } = await supabaseClient
-        .from('observaciones')
+        .from(TABLA_OBSERVACIONES)
         .insert({
             n_extintor: no,
             texto: texto
@@ -507,7 +951,7 @@ async function eliminarObservacion(index) {
     if (confirm("¿Desea eliminar esta observación?")) {
         const observacion = observacionesPublicas[index];
         const { error } = await supabaseClient
-            .from('observaciones')
+            .from(TABLA_OBSERVACIONES)
             .delete()
             .eq('id', observacion.id);
 
@@ -729,6 +1173,7 @@ function showModal(item) {
     
     const loanData = internalLoans[item["N"]];
     const outgoingData = outgoingLoans[item["N"]];
+    const externalData = externalLoans[item["N"]];
 
     let loanInfoHTML = '';
     
@@ -750,6 +1195,14 @@ function showModal(item) {
                 <div class="modal-row"><label>Entregado a / Solicitado por:</label><value><strong>${limpiar(outgoingData.personal)}</strong></value></div>
                 <div class="modal-row"><label>Fecha de Salida:</label><value>${limpiar(outgoingData.fecha)}</value></div>
             </div>`;
+    } else if (externalData) {
+        loanInfoHTML = `
+            <div class="modal-section" style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 6px;">
+                <div class="modal-section-title" style="color: #1d4ed8;">Garantía Externa</div>
+                <div class="modal-row"><label>Personal responsable:</label><value><strong>${limpiar(externalData.personal)}</strong></value></div>
+                <div class="modal-row"><label>Extintor de servicio:</label><value><strong>${limpiar(externalData.reemplazo)}</strong></value></div>
+                <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(externalData.fecha)}</value></div>
+            </div>`;
     }
 
     modalBody.innerHTML = `
@@ -770,7 +1223,8 @@ function showModal(item) {
             <div class="modal-row"><label>Vigencia:</label><value><span class="badge ${getBadgeClass(vigencia)}">${vigencia}</span></value></div>
             <div class="modal-row"><label>Condicion:</label><value><span class="badge ${getBadgeClass(getCondicion(item))}">${getCondicion(item)}</span></value></div>
             <div class="modal-row"><label>Estado:</label><value><span class="badge ${getBadgeClass(getEstado(item))}">${getEstado(item)}</span></value></div>
-            <div class="modal-row"><label>Fecha Vencimiento:</label><value>${limpiar(item["F. VENC."])}</value></div>
+            <div class="modal-row"><label>Vencimiento PH:</label><value>${formatMonthYear(item["ph_vencimiento"])}</value></div>
+            <div class="modal-row"><label>Vencimiento recarga:</label><value>${formatMonthYear(item["F. VENC."])}</value></div>
         </div>
         ${loanInfoHTML}`;
 
@@ -778,15 +1232,18 @@ function showModal(item) {
     let botonesAccion = `<button class="btn btn-primary" style="background-color: #059669; color: white;" onclick="abrirFormularioObservacion(${currentItemIndex})">✏️ Registrar Observación</button>`;
 
     if (isAdmin) {
-        if (hasActiveLoan(item)) {
+        if (hasActiveLoan(item) || hasActiveExternalLoan(item) || isOutgoingLoan(item)) {
             botonesAccion += `<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})">Préstamo Terminado / Retorno</button>`;
-        } else if (!isOutgoingLoan(item)) {
+        } else if (!isOutgoingLoan(item) && !externalData) {
             if (vigencia === "Vigente") {
                 botonesAccion += `<button class="btn" style="background-color: #dc3545; color: white;" onclick="openLoanForm(${currentItemIndex})">Utilizado (Préstamo Interno)</button>`;
             } else {
                 botonesAccion += `<button class="btn btn-primary" style="background-color: #2563eb; color: white;" onclick="openLoanForm(${currentItemIndex})">Registrar Garantía Externa</button>`;
             }
         }
+    }
+    if (isAdmin) {
+        botonesAccion += `<button class="btn" style="background-color:#7c3aed; color:white;" onclick="abrirEditor(${currentItemIndex})">Editar registro</button>`;
     }
     botonesAccion += `<button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>`;
 
@@ -815,55 +1272,105 @@ async function guardarCambio() {
     const itemNo = String(item["N"]);
     const esVigente = getVigencia(item) === "Vigente";
 
-    // 1. Actualizamos el registro del extintor actual en Supabase
-    // Usamos los campos que definiste en tu tabla: 'prestado' y 'ubicacion_prestamo'
-    const { error } = await supabaseClient
-        .from('Extintores')
-        .update({
-            prestado: 'SI',
-            ubicacion_prestamo: `Personal: ${personal} | Reemplazo: ${reemplazo} | ${esVigente ? 'Préstamo Interno' : 'Garantía Externa'}`
-        })
-        .eq('N', itemNo);
-
-    if (error) {
-        console.error("Error al actualizar en Supabase:", error);
-        alert("Hubo un error al guardar en la base de datos.");
-        return;
-    }
-
-    // 2. Si es préstamo interno, también debemos actualizar el extintor que sirve como reemplazo
+    // Préstamo interno:
+    // el extintor original queda en Mantenimiento/Almacén SST;
+    // el extintor de reemplazo queda como Prestado.
     if (esVigente) {
         const extintorStock = misDatos.find(e => String(e["N"]).trim() === String(reemplazo).trim());
-        if (extintorStock) {
-            await supabaseClient
-                .from('Extintores')
-                .update({
-                    prestado: 'SI',
-                    ubicacion_prestamo: `En préstamo a: ${item["AREA RESPONSABLE"]} (Reemplaza al N ${itemNo})`
-                })
-                .eq('N', String(extintorStock["N"]));
+        if (!extintorStock) {
+            alert("No se encontró el extintor de reemplazo en el inventario.");
+            return;
+        }
+
+        const { error: mantenimientoError } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .update({
+                prestado: null,
+                ubicacion_prestamo: `Mantenimiento / Almacén SST | Reemplaza al N ${reemplazo} | Personal: ${personal}`
+            })
+            .eq('N', itemNo);
+
+        if (mantenimientoError) {
+            alert("No se pudo actualizar el extintor que requiere cambio.");
+            return;
+        }
+
+        const { error: reemplazoError } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .update({
+                prestado: 'SI',
+                ubicacion_prestamo: `Préstamo a: ${item["AREA RESPONSABLE"]} | Reemplaza al N ${itemNo}`
+            })
+            .eq('N', String(extintorStock["N"]));
+
+        if (reemplazoError) {
+            alert("No se pudo marcar el extintor de reemplazo como prestado.");
+            return;
+        }
+        
+        const { error: movimientoError } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .insert([
+                {
+                    n_extintor: itemNo,
+                    tipo: 'garantia',
+                    personal,
+                    reemplazo,
+                    area_destino: item["AREA RESPONSABLE"],
+                    extintor_reemplazado: itemNo,
+                    detalle: 'Extintor original en Mantenimiento / Almacén SST',
+                    activo: true
+                },
+                {
+                    n_extintor: String(extintorStock["N"]),
+                    tipo: 'salida',
+                    personal,
+                    area_destino: item["AREA RESPONSABLE"],
+                    extintor_reemplazado: itemNo,
+                    detalle: `Extintor de reemplazo prestado en lugar del N ${itemNo}`,
+                    activo: true
+                }
+            ]);
+
+        if (movimientoError) {
+            alert("Los estados se actualizaron, pero no se pudo guardar el historial.");
+            return;
+        }
+    } else {
+        // Garantía externa: no cambia las fechas al registrarse.
+        // El extintor queda en mantenimiento hasta que se finalice el préstamo.
+        const { error: mantenimientoError } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .update({
+                prestado: null,
+                ubicacion_prestamo: `Mantenimiento por garantía externa | Reemplazo: ${reemplazo} | Personal: ${personal}`
+            })
+            .eq('N', itemNo);
+
+        if (mantenimientoError) {
+            alert("No se pudo marcar el extintor como mantenimiento.");
+            return;
+        }
+
+        const { error: movimientoError } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .insert({
+                n_extintor: itemNo,
+                tipo: 'garantia',
+                personal,
+                reemplazo,
+                detalle: 'Garantía externa de empresa de servicios',
+                activo: true
+            });
+
+        if (movimientoError) {
+            alert("No se pudo guardar la garantía externa.");
+            return;
         }
     }
 
-    const { error: movimientoError } = await supabaseClient
-        .from('movimientos')
-        .insert({
-            n_extintor: itemNo,
-            tipo: esVigente ? 'salida' : 'garantia',
-            personal: personal,
-            reemplazo: reemplazo,
-            area_destino: esVigente ? item["AREA RESPONSABLE"] : null,
-            extintor_reemplazado: esVigente ? itemNo : null,
-            activo: true
-        });
-
-    if (movimientoError) {
-        console.error("Error al guardar movimiento:", movimientoError);
-        alert("El extintor se actualizó, pero no se pudo guardar el historial: " + movimientoError.message);
-        return;
-    }
-
-    // 3. Finalizamos procesos
+    // Las fechas no se modifican al registrar ningún préstamo.
+    // Se actualizan únicamente al ejecutar finalizarPrestamo().
     alert("Cambio registrado exitosamente en la nube.");
     
     closeLoanModal();
@@ -877,15 +1384,26 @@ async function guardarCambio() {
 async function finalizarPrestamo(itemIndex) {
     const item = misDatos[itemIndex];
     const itemNo = String(item["N"]);
+    const mantenimiento = internalLoans[itemNo];
+    const garantiaExterna = externalLoans[itemNo];
+    const salida = outgoingLoans[itemNo];
+    const originalNo = mantenimiento || garantiaExterna
+        ? itemNo
+        : (salida?.extintorReemplazado || itemNo);
+    const reemplazoNo = mantenimiento
+        ? String(mantenimiento.reemplazo)
+        : (salida ? itemNo : null);
+    const numerosARetornar = [...new Set(
+        [originalNo, reemplazoNo].filter(Boolean).map(String)
+    )];
 
-    // Actualizamos en Supabase para vaciar los datos de préstamo
     const { error } = await supabaseClient
-        .from('Extintores')
+        .from(TABLA_EXTINTORES)
         .update({
             prestado: null,
             ubicacion_prestamo: null
         })
-        .eq('N', itemNo);
+        .in('N', numerosARetornar);
 
     if (error) {
         console.error("Error al finalizar préstamo:", error);
@@ -893,14 +1411,30 @@ async function finalizarPrestamo(itemIndex) {
         return;
     }
 
+    // La nueva vigencia empieza solo cuando el préstamo termina.
+    const nuevaFecha = calcularVencimientoPorPrestamo();
+    const { error: fechaError } = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update({
+            "F. VENC.": nuevaFecha,
+            ph_vencimiento: nuevaFecha
+        })
+        .in('N', numerosARetornar);
+
+    if (fechaError) {
+        console.error("Error al actualizar las fechas de retorno:", fechaError);
+        alert("El préstamo terminó, pero no se pudieron actualizar las fechas.");
+        return;
+    }
+
     await supabaseClient
-        .from('movimientos')
+        .from(TABLA_MOVIMIENTOS)
         .update({ activo: false })
-        .eq('n_extintor', itemNo)
+        .in('n_extintor', numerosARetornar)
         .eq('activo', true);
 
     await supabaseClient
-        .from('movimientos')
+        .from(TABLA_MOVIMIENTOS)
         .insert({
             n_extintor: itemNo,
             tipo: 'retorno',
@@ -919,24 +1453,109 @@ async function finalizarPrestamo(itemIndex) {
 
 function closeModal() { detailModal.classList.remove('active'); }
 function closeLoanModal() { loanModal.classList.remove('active'); }
+function closeEditorModal() { editorModal.classList.remove('active'); }
+
+function abrirEditor(itemIndex) {
+    if (!isAdmin) return;
+    currentItemIndex = itemIndex;
+    const item = misDatos[itemIndex];
+    const editorBody = document.getElementById('editor-body');
+    editorBody.innerHTML = '';
+
+    Object.keys(item).forEach((clave) => {
+        if (['id', 'created_at', 'updated_at'].includes(clave)) return;
+
+        const campo = document.createElement('div');
+        campo.className = 'editor-field';
+
+        const label = document.createElement('label');
+        label.textContent = clave;
+
+        const input = String(item[clave] ?? '').length > 70
+            ? document.createElement('textarea')
+            : document.createElement('input');
+        input.value = String(item[clave] ?? '');
+        input.dataset.key = clave;
+
+        campo.appendChild(label);
+        campo.appendChild(input);
+        editorBody.appendChild(campo);
+    });
+
+    closeModal();
+    editorModal.classList.add('active');
+}
+
+async function guardarEdicion() {
+    if (!isAdmin || currentItemIndex === null) return;
+
+    const item = misDatos[currentItemIndex];
+    const cambios = {};
+    document.querySelectorAll('#editor-body [data-key]').forEach((campo) => {
+        const clave = campo.dataset.key;
+        if (clave) cambios[clave] = campo.value;
+    });
+
+    const numeroAnterior = String(item['N']);
+    const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
+    if (!numeroNuevo) {
+        alert('El número de extintor no puede quedar vacío.');
+        return;
+    }
+
+    const { error } = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update(cambios)
+        .eq('N', numeroAnterior);
+
+    if (error) {
+        console.error('Error al guardar edición:', error);
+        alert('No se pudieron guardar los cambios: ' + error.message);
+        return;
+    }
+
+    // Mantiene vinculados el historial y las observaciones si se cambia el N.
+    if (numeroNuevo !== numeroAnterior) {
+        await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .update({ n_extintor: numeroNuevo })
+            .eq('n_extintor', numeroAnterior);
+        await supabaseClient
+            .from(TABLA_OBSERVACIONES)
+            .update({ n_extintor: numeroNuevo })
+            .eq('n_extintor', numeroAnterior);
+    }
+
+    alert('Registro actualizado correctamente.');
+    closeEditorModal();
+    await refreshData();
+    await cargarDatosSecundarios();
+    poblarAreas();
+    applyFilters();
+}
 
 detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeModal(); });
 loanModal.addEventListener('click', (e) => { if (e.target === loanModal) closeLoanModal(); });
 historyModal.addEventListener('click', (e) => { if (e.target === historyModal) closeHistoryModal(); });
 observationsModal.addEventListener('click', (e) => { if (e.target === observationsModal) closeObservationsModal(); });
 observationFormModal.addEventListener('click', (e) => { if (e.target === observationFormModal) closeObservationFormModal(); });
+editorModal.addEventListener('click', (e) => { if (e.target === editorModal) closeEditorModal(); });
 
 // Listeners de filtros
+areaFilter.addEventListener('input', applyFilters);
 areaFilter.addEventListener('change', applyFilters);
 vigenciaFilter.addEventListener('change', applyFilters);
 if (estadoFilter) {
     estadoFilter.addEventListener('change', applyFilters);
 }
+if (numeroFilter) {
+    numeroFilter.addEventListener('input', applyFilters);
+}
 
 // Función para refrescar datos tras un cambio
 async function refreshData() {
     const { data, error } = await supabaseClient
-        .from('Extintores')
+        .from(TABLA_EXTINTORES)
         .select('*');
 
     if (error) {
@@ -945,11 +1564,10 @@ async function refreshData() {
     }
 
     if (data) {
-        misDatos = data;
+        misDatos = [...data].sort(compararNumeros);
     }
 }
 
-// Función de inicio que carga desde Supabase y dibuja la tabla por primera vez
 // Función de inicio que carga desde Supabase y dibuja la tabla por primera vez
 async function cargarDatosSecundarios() {
     const [
@@ -957,11 +1575,11 @@ async function cargarDatosSecundarios() {
         { data: movimientos, error: movimientosError }
     ] = await Promise.all([
         supabaseClient
-            .from('observaciones')
+            .from(TABLA_OBSERVACIONES)
             .select('*')
             .order('created_at', { ascending: false }),
         supabaseClient
-            .from('movimientos')
+            .from(TABLA_MOVIMIENTOS)
             .select('*')
             .order('created_at', { ascending: false })
     ]);
@@ -984,6 +1602,7 @@ async function cargarDatosSecundarios() {
 
     internalLoans = {};
     outgoingLoans = {};
+    externalLoans = {};
     historialCompleto = [];
 
     (movimientos || []).forEach(mov => {
@@ -1016,19 +1635,30 @@ async function cargarDatosSecundarios() {
                 fecha
             };
         } else if (mov.tipo === 'garantia') {
-            internalLoans[mov.n_extintor] = {
-                personal: mov.personal,
-                reemplazo: mov.reemplazo,
-                esInterno: false,
-                fecha
-            };
+            const esGarantiaExterna =
+                String(mov.detalle || '').toLowerCase().includes('garantía externa');
+
+            if (esGarantiaExterna) {
+                externalLoans[mov.n_extintor] = {
+                    personal: mov.personal,
+                    reemplazo: mov.reemplazo,
+                    fecha
+                };
+            } else {
+                internalLoans[mov.n_extintor] = {
+                    personal: mov.personal,
+                    reemplazo: mov.reemplazo,
+                    esInterno: true,
+                    fecha
+                };
+            }
         }
     });
 }
 
 async function iniciarApp() {
     const { data, error } = await supabaseClient
-        .from('Extintores')
+        .from(TABLA_EXTINTORES)
         .select('*');
 
     if (error) {
@@ -1041,19 +1671,14 @@ async function iniciarApp() {
         return;
     }
 
-    misDatos = data;
+    misDatos = [...data].sort(compararNumeros);
     await cargarDatosSecundarios();
 
-    // Rellenamos el selector de áreas automáticamente con los datos de Supabase
-    const areas = [...new Set(misDatos.map(item => item["AREA RESPONSABLE"]).filter(Boolean))].sort();
-    
-    areaFilter.innerHTML = '<option value="">Areas</option>';
-    areas.forEach(area => {
-        const option = document.createElement('option');
-        option.value = area;
-        option.textContent = area;
-        areaFilter.appendChild(option);
-    });
+    // Las sugerencias se crean con todos los valores actuales de Supabase.
+    poblarAreas();
+
+    // Inicializa el calendario
+    renderCalendar();
 
     // Dibujamos la tabla por primera vez
     renderTable(misDatos);
@@ -1062,7 +1687,7 @@ async function iniciarApp() {
 // Ejecutamos la aplicación al cargar la página
 iniciarApp();
 async function debugData() {
-    const { data, error } = await supabaseClient.from('Extintores').select('*');
+    const { data, error } = await supabaseClient.from(TABLA_EXTINTORES).select('*');
     if (error) {
         alert("Error de conexión Supabase: " + error.message);
     } else if (data && data.length > 0) {
@@ -1073,7 +1698,7 @@ async function debugData() {
 }
 async function verificarTodo() {
     try {
-        const { data, error } = await supabaseClient.from('Extintores').select('*');
+        const { data, error } = await supabaseClient.from(TABLA_EXTINTORES).select('*');
         if (error) {
             alert("Error Supabase: " + error.message);
         } else if (data.length === 0) {
@@ -1087,4 +1712,6 @@ async function verificarTodo() {
     }
 }
 </script>
+</body>
+</html>
 </html>
