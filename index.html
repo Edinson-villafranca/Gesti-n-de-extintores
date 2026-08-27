@@ -4,7 +4,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario Interno - EXTINTORES </title>
+    <title>Inventario Interno - EXTINTORES</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { margin: 0; background-color: #f1f5f9; color: #1e293b; }
@@ -417,14 +417,16 @@
         return date ? date < new Date() : false;
     }
 
+    // ===== MODIFICACIÓN: SOLO USA "F. VENC." =====
     function isItemExpired(item) {
-        return isExpired(item["F. VENC."]) || isExpired(item["ph_vencimiento"]);
+        return isExpired(item["F. VENC."]);
     }
 
     function hasActiveLoan(item) { return Boolean(internalLoans[item["N"]]); }
     function isOutgoingLoan(item) { return Boolean(outgoingLoans[item["N"]]); }
     function hasActiveExternalLoan(item) { return Boolean(externalLoans[item["N"]]); }
 
+    // ===== MODIFICACIÓN: SOLO USA "F. VENC." PARA EL FILTRO =====
     function getMonthIndex(dateStr) {
         const isoMonth = String(dateStr ?? "").match(/^(\d{4})-(\d{2})$/);
         if (isoMonth) {
@@ -442,18 +444,16 @@
         const inicio = desde ? getMonthIndex(desde) : null;
         const fin = hasta ? getMonthIndex(hasta) : null;
         if (inicio !== null && fin !== null && inicio > fin) return false;
-        const fechasItem = [item["F. VENC."], item["ph_vencimiento"]]
-            .map(getMonthIndex)
-            .filter(valor => valor !== null);
-        return fechasItem.some(fecha => {
-            if (inicio !== null && fecha < inicio) return false;
-            if (fin !== null && fecha > fin) return false;
-            return true;
-        });
+        // SOLO usa "F. VENC." para el filtro
+        const fechaItem = getMonthIndex(item["F. VENC."]);
+        if (fechaItem === null) return false;
+        if (inicio !== null && fechaItem < inicio) return false;
+        if (fin !== null && fechaItem > fin) return false;
+        return true;
     }
 
     // ============================================================
-    //  FUNCIONES DE ESTADO (AUTOMÁTICAS - SIN MANUALES)
+    //  FUNCIONES DE ESTADO (AUTOMÁTICAS)
     // ============================================================
     function getVigencia(item) {
         if (hasActiveLoan(item) || hasActiveExternalLoan(item)) return "En Mantenimiento";
