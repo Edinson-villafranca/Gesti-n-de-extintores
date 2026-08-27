@@ -4,7 +4,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario Interno - Estilo Zite</title>
+    <title>Inventario Interno - EXTINTORES </title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { margin: 0; background-color: #f1f5f9; color: #1e293b; }
@@ -42,7 +42,7 @@
         .btn-primary:hover { background-color: #0369a1; }
         .btn-secondary { background-color: #cbd5e1; color: #0f172a; }
         .btn-secondary:hover { background-color: #94a3b8; }
-        .btn-success { background-color: #16a34a; color: white; }
+        .btn-success { background-color: #16a34a; color: white; display: inline-flex; align-items: center; gap: 6px; }
         .btn-success:hover { background-color: #15803d; }
         .btn-danger { background-color: #dc2626; color: white; }
         .btn-danger:hover { background-color: #b91c1c; }
@@ -56,7 +56,7 @@
         .editor-field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px; }
         .editor-field input, .editor-field textarea { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 13px; }
         .editor-field textarea { min-height: 70px; resize: vertical; }
-        .editor-field select { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 13px; background: white; }
+
         .date-filter-wrap { position: relative; }
         .date-trigger { height: 44px; padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #1e293b; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 230px; max-width: 280px; }
         .date-trigger:hover { border-color: #0284c7; }
@@ -107,7 +107,6 @@
         <input id="area-filter" class="filter-box" list="area-options" style="margin-bottom:0; max-width:250px;" placeholder="Buscar área..." autocomplete="off">
         <datalist id="area-options"></datalist>
         <input id="numero-filter" class="filter-box number-filter" type="search" placeholder="Buscar por N de extintor..." autocomplete="off">
-
         <div class="date-filter-wrap">
             <button id="date-trigger" class="date-trigger" type="button" aria-expanded="false">
                 <span style="display:flex; align-items:center; gap:8px; overflow:hidden;">
@@ -131,7 +130,6 @@
                 </div>
             </div>
         </div>
-
         <select id="vigencia-filter" class="filter-box" style="margin-bottom:0; max-width:200px;">
             <option value="">Vigencia</option>
             <option value="Vigente">Vigente</option>
@@ -150,7 +148,17 @@
 
     <div class="table-container">
         <table>
-            <thead><tr><th>N</th><th>Area Responsable</th><th>Ubicacion</th><th>Ubicación Préstamo</th><th>Vigencia</th><th>Condicion</th><th>Estado</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>N</th>
+                    <th>Area Responsable</th>
+                    <th>Ubicacion</th>
+                    <th>Ubicación Préstamo</th>
+                    <th>Vigencia</th>
+                    <th>Condicion</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
             <tbody id="table-body"></tbody>
         </table>
     </div>
@@ -162,7 +170,7 @@
 <!-- Modal Registrar Observación -->
 <div id="observation-form-modal" class="modal"><div class="modal-content" style="max-width: 500px;"><div class="modal-header"><h2>Registrar Observación</h2><button class="modal-close" onclick="closeObservationFormModal()">&times;</button></div><div class="modal-section"><div class="form-group"><label>N de Extintor:</label><input type="text" id="obs-extintor-no" readonly style="background-color:#e2e8f0; font-weight:bold;"></div><div class="form-group"><label for="obs-texto-detalle">Escriba su observación / novedad:</label><textarea id="obs-texto-detalle" rows="4" placeholder="Ej. Ubicacion cambiada, requiere revisión, etc..." style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;"></textarea></div></div><div class="modal-actions"><button class="btn btn-primary" onclick="guardarObservacionPublica()">Guardar Observación</button><button class="btn btn-secondary" onclick="closeObservationFormModal()">Cancelar</button></div></div></div>
 
-<!-- Modal Editor -->
+<!-- Modal Editor (solo administrador) - SIN CAMPOS MANUALES -->
 <div id="editor-modal" class="modal"><div class="modal-content" style="max-width: 1000px;"><div class="modal-header"><h2>Editor de Extintor</h2><button class="modal-close" onclick="closeEditorModal()">&times;</button></div><p style="margin-top:0; color:#64748b; font-size:13px;">Modifica cualquier dato del registro y guarda todos los cambios juntos.</p><div id="editor-body" class="editor-grid"></div><div class="modal-actions"><button class="btn btn-primary" onclick="guardarEdicion()">Guardar cambios</button><button class="btn btn-secondary" onclick="closeEditorModal()">Cancelar</button></div></div></div>
 
 <!-- Modal Préstamo / Cambio -->
@@ -177,12 +185,15 @@
 <!-- Modal Observaciones Generales -->
 <div id="observations-modal" class="modal"><div class="modal-content" style="max-width:900px;"><div class="modal-header"><h2>Listado General de Observaciones</h2><button class="modal-close" onclick="closeObservationsModal()">&times;</button></div><div style="overflow-x:auto;"><table><thead><tr style="background:#e2e8f0; color:#0f172a;"><th>Fecha</th><th>N Extintor</th><th>Observación</th><th>Acción</th></tr></thead><tbody id="observations-body"></tbody></table></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeObservationsModal()">Cerrar</button></div></div></div>
 
-<!-- ===== MODALES GENÉRICOS ===== -->
+<!-- Modales genéricos para alert/confirm/prompt -->
 <div id="generic-modal" class="modal"><div class="modal-content" style="max-width:450px; text-align:center;"><div class="modal-header" style="border-bottom:none; padding-bottom:5px;"><h2 id="generic-modal-title" style="font-size:18px; margin:0;">Aviso</h2><button class="modal-close" onclick="closeGenericModal()">&times;</button></div><div id="generic-modal-body" style="padding:15px 0; font-size:15px; color:#0f172a;"></div><div class="modal-actions" style="justify-content:center;" id="generic-modal-actions"><button class="btn btn-primary" id="generic-modal-confirm-btn" onclick="confirmGenericModal()">Aceptar</button><button class="btn btn-secondary" id="generic-modal-cancel-btn" onclick="cancelGenericModal()" style="display:none;">Cancelar</button></div></div></div>
 
 <div id="prompt-modal" class="modal"><div class="modal-content" style="max-width:450px;"><div class="modal-header"><h2 id="prompt-modal-title" style="font-size:18px;">Ingrese información</h2><button class="modal-close" onclick="closePromptModal()">&times;</button></div><div class="modal-section"><div id="prompt-modal-message" style="margin-bottom:12px; font-size:14px; color:#334155;"></div><div class="form-group"><input type="text" id="prompt-modal-input" placeholder="Escriba aquí..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px;"></div></div><div class="modal-actions" style="justify-content:center;"><button class="btn btn-primary" onclick="acceptPrompt()">Aceptar</button><button class="btn btn-secondary" onclick="closePromptModal()">Cancelar</button></div></div></div>
 
 <script>
+    // ============================================================
+    //  CONFIGURACIÓN SUPABASE
+    // ============================================================
     const SUPABASE_URL = 'https://wlbwrjsbwxcullsaclon.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_iU6UHYMHkKG9fHI24342Jw_G7E0-S08';
     const TABLA_EXTINTORES = 'Extintores_Prueba';
@@ -193,7 +204,9 @@
     const CLAVE_ADMIN = "Romero26"; 
     let isAdmin = sessionStorage.getItem('extintor_admin') === 'true';
 
-    // ===== MODALES GENÉRICOS =====
+    // ============================================================
+    //  MODALES GENÉRICOS
+    // ============================================================
     let genericResolve = null;
     let promptResolve = null;
 
@@ -260,7 +273,9 @@
     document.getElementById('generic-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeGenericModal(); });
     document.getElementById('prompt-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closePromptModal(); });
 
-    // ===== PERMISOS =====
+    // ============================================================
+    //  ADMINISTRADOR (CONTRASEÑA FIJA)
+    // ============================================================
     function aplicarPermisos() {
         const btnHistorial = document.getElementById('btn-historial');
         const btnObservaciones = document.getElementById('btn-observaciones');
@@ -302,6 +317,9 @@
 
     aplicarPermisos();
 
+    // ============================================================
+    //  REFERENCIAS DOM
+    // ============================================================
     const vigenciaFilter = document.getElementById('vigencia-filter');
     const areaFilter = document.getElementById('area-filter');
     const estadoFilter = document.getElementById('estado-filter');
@@ -325,412 +343,765 @@
     let currentFilteredData = [];
     let misDatos = [];
 
-    const MESES = { jan:1, enero:1, feb:2, febrero:2, mar:3, marzo:3, apr:4, abr:4, abril:4, may:5, mayo:5, jun:6, junio:6, jul:7, julio:7, aug:8, ago:8, agosto:8, sep:9, sept:9, septiembre:9, oct:10, octubre:10, nov:11, noviembre:11, dec:12, dic:12, diciembre:12 };
+    // ============================================================
+    //  PARSEO DE FECHAS
+    // ============================================================
+    const MESES = {
+        jan: 1, enero: 1,
+        feb: 2, febrero: 2,
+        mar: 3, marzo: 3,
+        apr: 4, abr: 4, abril: 4,
+        may: 5, mayo: 5,
+        jun: 6, junio: 6,
+        jul: 7, julio: 7,
+        aug: 8, ago: 8, agosto: 8,
+        sep: 9, sept: 9, septiembre: 9,
+        oct: 10, octubre: 10,
+        nov: 11, noviembre: 11,
+        dec: 12, dic: 12, diciembre: 12
+    };
 
     function getMonthYear(dateStr) {
         if (!dateStr || String(dateStr).trim() === "") return null;
         const value = String(dateStr).trim().toLowerCase().replace(/\./g,'').replace(/\s+/g,'');
         let match = value.match(/^(\d{1,2})[\/-](\d{2}|\d{4})$/);
-        if (match) { const month=Number(match[1]); let year=Number(match[2]); if(month>=1&&month<=12){ if(year<100) year+=2000; return {month,year}; } }
+        if (match) {
+            const month = Number(match[1]);
+            let year = Number(match[2]);
+            if (month >= 1 && month <= 12) {
+                if (year < 100) year += 2000;
+                return { month, year };
+            }
+        }
         match = value.match(/^(\d{2}|\d{4})[\/-]([a-záéíóúñ]+)$/i);
-        if (match) { let year=Number(match[1]); const month=MESES[match[2]]; if(month){ if(year<100) year+=2000; return {month,year}; } }
+        if (match) {
+            let year = Number(match[1]);
+            const month = MESES[match[2]];
+            if (month) {
+                if (year < 100) year += 2000;
+                return { month, year };
+            }
+        }
         match = value.match(/^([a-záéíóúñ]+)[\/-](\d{2}|\d{4})$/i);
-        if (match) { let year=Number(match[2]); const month=MESES[match[1]]; if(month){ if(year<100) year+=2000; return {month,year}; } }
+        if (match) {
+            let year = Number(match[2]);
+            const month = MESES[match[1]];
+            if (month) {
+                if (year < 100) year += 2000;
+                return { month, year };
+            }
+        }
         return null;
     }
 
-    function parseDate(dateStr) { const r=getMonthYear(dateStr); return r?new Date(r.year, r.month, 0, 23,59,59,999):null; }
-    function formatMonthYear(dateStr) { const r=getMonthYear(dateStr); return r?`${String(r.month).padStart(2,'0')}/${r.year}`:dateStr||"-"; }
-    function calcularVencimientoPorPrestamo() { const d=new Date(); d.setMonth(d.getMonth()+13); return `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; }
-    function isExpired(dateStr) { const d=parseDate(dateStr); return d?d<new Date():false; }
-    function isItemExpired(item) { return isExpired(item["F. VENC."]) || isExpired(item["ph_vencimiento"]); }
+    function parseDate(dateStr) {
+        const result = getMonthYear(dateStr);
+        if (!result) return null;
+        return new Date(result.year, result.month, 0, 23, 59, 59, 999);
+    }
+
+    function formatMonthYear(dateStr) {
+        const result = getMonthYear(dateStr);
+        if (!result) return dateStr || "-";
+        return `${String(result.month).padStart(2, '0')}/${result.year}`;
+    }
+
+    function calcularVencimientoPorPrestamo() {
+        const nuevaFecha = new Date();
+        nuevaFecha.setMonth(nuevaFecha.getMonth() + 13);
+        return `${String(nuevaFecha.getMonth() + 1).padStart(2, '0')}/${nuevaFecha.getFullYear()}`;
+    }
+
+    function isExpired(dateStr) {
+        const date = parseDate(dateStr);
+        return date ? date < new Date() : false;
+    }
+
+    function isItemExpired(item) {
+        return isExpired(item["F. VENC."]) || isExpired(item["ph_vencimiento"]);
+    }
+
     function hasActiveLoan(item) { return Boolean(internalLoans[item["N"]]); }
     function isOutgoingLoan(item) { return Boolean(outgoingLoans[item["N"]]); }
     function hasActiveExternalLoan(item) { return Boolean(externalLoans[item["N"]]); }
 
     function getMonthIndex(dateStr) {
-        const iso=String(dateStr??"").match(/^(\d{4})-(\d{2})$/);
-        if(iso){ const m=Number(iso[2]); if(m>=1&&m<=12) return Number(iso[1])*12+m; }
-        const p=getMonthYear(dateStr); return p?p.year*12+p.month:null;
+        const isoMonth = String(dateStr ?? "").match(/^(\d{4})-(\d{2})$/);
+        if (isoMonth) {
+            const month = Number(isoMonth[2]);
+            if (month >= 1 && month <= 12) {
+                return Number(isoMonth[1]) * 12 + month;
+            }
+        }
+        const parsed = getMonthYear(dateStr);
+        return parsed ? parsed.year * 12 + parsed.month : null;
     }
 
     function itemMatchesDateRange(item, desde, hasta) {
-        if(!desde&&!hasta) return true;
-        const inicio=desde?getMonthIndex(desde):null; const fin=hasta?getMonthIndex(hasta):null;
-        if(inicio!==null&&fin!==null&&inicio>fin) return false;
-        const fechas=[item["F. VENC."], item["ph_vencimiento"]].map(getMonthIndex).filter(v=>v!==null);
-        return fechas.some(f=>{ if(inicio!==null&&f<inicio) return false; if(fin!==null&&f>fin) return false; return true; });
+        if (!desde && !hasta) return true;
+        const inicio = desde ? getMonthIndex(desde) : null;
+        const fin = hasta ? getMonthIndex(hasta) : null;
+        if (inicio !== null && fin !== null && inicio > fin) return false;
+        const fechasItem = [item["F. VENC."], item["ph_vencimiento"]]
+            .map(getMonthIndex)
+            .filter(valor => valor !== null);
+        return fechasItem.some(fecha => {
+            if (inicio !== null && fecha < inicio) return false;
+            if (fin !== null && fecha > fin) return false;
+            return true;
+        });
     }
 
+    // ============================================================
+    //  FUNCIONES DE ESTADO (AUTOMÁTICAS - SIN MANUALES)
+    // ============================================================
     function getVigencia(item) {
-        if(item.vigencia_manual && String(item.vigencia_manual).trim()!=="") return String(item.vigencia_manual).trim();
-        if(hasActiveLoan(item)||hasActiveExternalLoan(item)) return "En Mantenimiento";
-        return isItemExpired(item)?"Vencido":"Vigente";
+        if (hasActiveLoan(item) || hasActiveExternalLoan(item)) return "En Mantenimiento";
+        return isItemExpired(item) ? "Vencido" : "Vigente";
     }
+
     function getCondicion(item) {
-        if(item.condicion_manual && String(item.condicion_manual).trim()!=="") return String(item.condicion_manual).trim();
-        if(hasActiveLoan(item)||hasActiveExternalLoan(item)) return "Mantenimiento";
-        return isItemExpired(item)?"No Operativo":"Operativo";
+        if (hasActiveLoan(item) || hasActiveExternalLoan(item)) return "Mantenimiento";
+        return isItemExpired(item) ? "No Operativo" : "Operativo";
     }
+
     function getEstado(item) {
-        if(item.estado_manual && String(item.estado_manual).trim()!=="") return String(item.estado_manual).trim();
-        if(isOutgoingLoan(item)) return "Prestado";
-        if(hasActiveLoan(item)||hasActiveExternalLoan(item)) {
-            if(hasActiveExternalLoan(item)) return "Mantenimiento";
-            return internalLoans[item["N"]].esInterno?"Almacén SST":"Mantenimiento";
+        if (isOutgoingLoan(item)) return "Prestado";
+        if (hasActiveLoan(item) || hasActiveExternalLoan(item)) {
+            if (hasActiveExternalLoan(item)) return "Mantenimiento";
+            return internalLoans[item["N"]].esInterno ? "Almacén SST" : "Mantenimiento";
         }
-        return isItemExpired(item)?"No Disponible":"Disponible";
+        return isItemExpired(item) ? "No Disponible" : "Disponible";
     }
-    function getBadgeClass(status) { if(status==="Prestado") return "badge-prestado"; if(status==="Mantenimiento"||status==="Almacén SST"||status==="En Mantenimiento") return "badge-mantenimiento"; if(status==="Vencido"||status==="No Operativo"||status==="No Disponible") return "badge-vencido"; return "badge-vigente"; }
-    function limpiar(valor) { return (valor!==undefined&&valor!==null&&String(valor).trim()!=="")?valor:"-"; }
 
-    // ===== CALENDARIO =====
-    let calRangeStart=null, calRangeEnd=null, calVisibleMonth=new Date(new Date().getFullYear(), new Date().getMonth(),1);
-    let calPendingDesde="", calPendingHasta="";
-    const dateTrigger=document.getElementById('date-trigger'), calendarPopup=document.getElementById('calendar-popup');
-    const dateLabel=document.getElementById('date-label'), calDaysContainer=document.getElementById('cal-days');
-    const calMonthLabel=document.getElementById('cal-month-label'), calStatus=document.getElementById('cal-status');
-    const calClearBtn=document.getElementById('cal-clear'), calApplyBtn=document.getElementById('cal-apply');
-    const monthFormatter=new Intl.DateTimeFormat('es-ES',{month:'long',year:'numeric'});
-    const dateFormatter=new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+    function getBadgeClass(status) {
+        if (status === "Prestado") return "badge-prestado";
+        if (status === "Mantenimiento" || status === "Almacén SST" || status === "En Mantenimiento") return "badge-mantenimiento";
+        if (status === "Vencido" || status === "No Operativo" || status === "No Disponible") return "badge-vencido";
+        return "badge-vigente";
+    }
 
-    function dateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-    function sameDay(a,b){ return a&&b&&dateKey(a)===dateKey(b); }
-    function toIsoMonth(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+    function limpiar(valor) {
+        return (valor !== undefined && valor !== null && String(valor).trim() !== "") ? valor : "-";
+    }
+
+    // ============================================================
+    //  CALENDARIO
+    // ============================================================
+    let calRangeStart = null, calRangeEnd = null, calVisibleMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let calPendingDesde = "", calPendingHasta = "";
+    const dateTrigger = document.getElementById('date-trigger');
+    const calendarPopup = document.getElementById('calendar-popup');
+    const dateLabel = document.getElementById('date-label');
+    const calDaysContainer = document.getElementById('cal-days');
+    const calMonthLabel = document.getElementById('cal-month-label');
+    const calStatus = document.getElementById('cal-status');
+    const calClearBtn = document.getElementById('cal-clear');
+    const calApplyBtn = document.getElementById('cal-apply');
+    const monthFormatter = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
+    const dateFormatter = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function sameDay(a,b) { return a && b && dateKey(a) === dateKey(b); }
+    function toIsoMonth(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 
     function renderCalendar() {
-        calMonthLabel.textContent=monthFormatter.format(calVisibleMonth);
-        calDaysContainer.innerHTML='';
-        const year=calVisibleMonth.getFullYear(), month=calVisibleMonth.getMonth();
-        const firstDay=new Date(year,month,1), offset=(firstDay.getDay()+6)%7;
-        const daysInMonth=new Date(year,month+1,0).getDate();
-        for(let i=0;i<offset;i++){ const sp=document.createElement('span'); sp.textContent=new Date(year,month,-offset+i+1).getDate(); sp.style.textAlign='center'; sp.style.color='#cbd5e1'; sp.style.fontSize='13px'; calDaysContainer.appendChild(sp); }
-        const today=new Date();
-        for(let day=1; day<=daysInMonth; day++){
-            const current=new Date(year,month,day), btn=document.createElement('button');
-            btn.type='button'; btn.textContent=day;
-            if(sameDay(current,today)) btn.classList.add('today');
-            if(sameDay(current,calRangeStart)||sameDay(current,calRangeEnd)) btn.classList.add('selected');
-            if(calRangeStart&&calRangeEnd&&current>calRangeStart&&current<calRangeEnd) btn.classList.add('in-range');
-            if(sameDay(current,calRangeStart)) btn.classList.add('range-start');
-            if(sameDay(current,calRangeEnd)) btn.classList.add('range-end');
-            btn.addEventListener('click',(e)=>{ e.stopPropagation(); selectCalendarDate(current); });
+        calMonthLabel.textContent = monthFormatter.format(calVisibleMonth);
+        calDaysContainer.innerHTML = '';
+        const year = calVisibleMonth.getFullYear(), month = calVisibleMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const offset = (firstDay.getDay() + 6) % 7;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let i = 0; i < offset; i++) {
+            const sp = document.createElement('span');
+            sp.textContent = new Date(year, month, -offset + i + 1).getDate();
+            sp.style.textAlign = 'center';
+            sp.style.color = '#cbd5e1';
+            sp.style.fontSize = '13px';
+            calDaysContainer.appendChild(sp);
+        }
+        const today = new Date();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const current = new Date(year, month, day);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = day;
+            if (sameDay(current, today)) btn.classList.add('today');
+            if (sameDay(current, calRangeStart) || sameDay(current, calRangeEnd)) btn.classList.add('selected');
+            if (calRangeStart && calRangeEnd && current > calRangeStart && current < calRangeEnd) btn.classList.add('in-range');
+            if (sameDay(current, calRangeStart)) btn.classList.add('range-start');
+            if (sameDay(current, calRangeEnd)) btn.classList.add('range-end');
+            btn.addEventListener('click', (e) => { e.stopPropagation(); selectCalendarDate(current); });
             calDaysContainer.appendChild(btn);
         }
     }
 
     function selectCalendarDate(date) {
-        if(!calRangeStart||(calRangeStart&&calRangeEnd)){ calRangeStart=date; calRangeEnd=null; calStatus.textContent='Ahora selecciona la fecha final'; calApplyBtn.disabled=true; }
-        else { if(date<calRangeStart){ calRangeEnd=calRangeStart; calRangeStart=date; } else if(sameDay(date,calRangeStart)){ calRangeEnd=date; } else { calRangeEnd=date; } calStatus.textContent=`Rango: ${dateFormatter.format(calRangeStart)} - ${dateFormatter.format(calRangeEnd)}`; calApplyBtn.disabled=false; }
-        updateDateLabel(); renderCalendar();
+        if (!calRangeStart || (calRangeStart && calRangeEnd)) {
+            calRangeStart = date;
+            calRangeEnd = null;
+            calStatus.textContent = 'Ahora selecciona la fecha final';
+            calApplyBtn.disabled = true;
+        } else {
+            if (date < calRangeStart) {
+                calRangeEnd = calRangeStart;
+                calRangeStart = date;
+            } else if (sameDay(date, calRangeStart)) {
+                calRangeEnd = date;
+            } else {
+                calRangeEnd = date;
+            }
+            calStatus.textContent = `Rango: ${dateFormatter.format(calRangeStart)} - ${dateFormatter.format(calRangeEnd)}`;
+            calApplyBtn.disabled = false;
+        }
+        updateDateLabel();
+        renderCalendar();
     }
 
     function updateDateLabel() {
-        if(calRangeStart&&calRangeEnd) dateLabel.textContent=`${dateFormatter.format(calRangeStart)} - ${dateFormatter.format(calRangeEnd)}`;
-        else if(calRangeStart&&!calRangeEnd) dateLabel.textContent=`${dateFormatter.format(calRangeStart)} - ...`;
-        else dateLabel.textContent='Rango de vencimiento';
+        if (calRangeStart && calRangeEnd) dateLabel.textContent = `${dateFormatter.format(calRangeStart)} - ${dateFormatter.format(calRangeEnd)}`;
+        else if (calRangeStart && !calRangeEnd) dateLabel.textContent = `${dateFormatter.format(calRangeStart)} - ...`;
+        else dateLabel.textContent = 'Rango de vencimiento';
     }
 
-    function openCalendar(){ calendarPopup.classList.add('open'); dateTrigger.classList.add('open'); dateTrigger.setAttribute('aria-expanded','true'); }
-    function closeCalendar(){ calendarPopup.classList.remove('open'); dateTrigger.classList.remove('open'); dateTrigger.setAttribute('aria-expanded','false'); }
-    function clearCalendarRange(){ calRangeStart=null; calRangeEnd=null; calPendingDesde=""; calPendingHasta=""; calStatus.textContent='Selecciona la fecha de inicio'; calApplyBtn.disabled=true; updateDateLabel(); renderCalendar(); applyFilters(); }
+    function openCalendar() { calendarPopup.classList.add('open'); dateTrigger.classList.add('open'); dateTrigger.setAttribute('aria-expanded','true'); }
+    function closeCalendar() { calendarPopup.classList.remove('open'); dateTrigger.classList.remove('open'); dateTrigger.setAttribute('aria-expanded','false'); }
+    function clearCalendarRange() { calRangeStart = null; calRangeEnd = null; calPendingDesde = ""; calPendingHasta = ""; calStatus.textContent = 'Selecciona la fecha de inicio'; calApplyBtn.disabled = true; updateDateLabel(); renderCalendar(); applyFilters(); }
 
-    dateTrigger.addEventListener('click',(e)=>{ e.stopPropagation(); if(calendarPopup.classList.contains('open')) closeCalendar(); else openCalendar(); });
-    document.getElementById('cal-prev').addEventListener('click',(e)=>{ e.stopPropagation(); calVisibleMonth.setMonth(calVisibleMonth.getMonth()-1); renderCalendar(); });
-    document.getElementById('cal-next').addEventListener('click',(e)=>{ e.stopPropagation(); calVisibleMonth.setMonth(calVisibleMonth.getMonth()+1); renderCalendar(); });
-    calClearBtn.addEventListener('click',(e)=>{ e.stopPropagation(); clearCalendarRange(); });
-    calApplyBtn.addEventListener('click',(e)=>{ e.stopPropagation(); if(calRangeStart&&calRangeEnd){ calPendingDesde=toIsoMonth(calRangeStart); calPendingHasta=toIsoMonth(calRangeEnd); closeCalendar(); applyFilters(); } });
-    document.addEventListener('click',(e)=>{ if(!e.target.closest('.date-filter-wrap')) closeCalendar(); });
+    dateTrigger.addEventListener('click', (e) => { e.stopPropagation(); if (calendarPopup.classList.contains('open')) closeCalendar(); else openCalendar(); });
+    document.getElementById('cal-prev').addEventListener('click', (e) => { e.stopPropagation(); calVisibleMonth.setMonth(calVisibleMonth.getMonth() - 1); renderCalendar(); });
+    document.getElementById('cal-next').addEventListener('click', (e) => { e.stopPropagation(); calVisibleMonth.setMonth(calVisibleMonth.getMonth() + 1); renderCalendar(); });
+    calClearBtn.addEventListener('click', (e) => { e.stopPropagation(); clearCalendarRange(); });
+    calApplyBtn.addEventListener('click', (e) => { e.stopPropagation(); if (calRangeStart && calRangeEnd) { calPendingDesde = toIsoMonth(calRangeStart); calPendingHasta = toIsoMonth(calRangeEnd); closeCalendar(); applyFilters(); } });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.date-filter-wrap')) closeCalendar(); });
 
-    // ===== FILTROS =====
+    // ============================================================
+    //  FILTROS
+    // ============================================================
     function applyFilters() {
-        const selectedArea=areaFilter.value, selectedNumero=numeroFilter?numeroFilter.value.trim().toLowerCase():"";
-        const selectedDesde=calPendingDesde||"", selectedHasta=calPendingHasta||"";
-        const selectedVigencia=vigenciaFilter.value, selectedEstado=estadoFilter?estadoFilter.value:"";
-        currentFilteredData=misDatos.filter(item=>{
-            if(selectedArea&&item["AREA RESPONSABLE"]!==selectedArea) return false;
-            if(selectedNumero&&!String(item["N"]??"").toLowerCase().includes(selectedNumero)) return false;
-            if(!itemMatchesDateRange(item,selectedDesde,selectedHasta)) return false;
-            const vigenciaActual=getVigencia(item);
-            if(selectedVigencia){ if(selectedVigencia==="Vencido"&&(vigenciaActual==="Vencido"||vigenciaActual==="En Mantenimiento")){} else if(selectedVigencia!==vigenciaActual) return false; }
-            if(selectedEstado!==""){ if(getEstado(item)!==selectedEstado) return false; }
+        const selectedArea = areaFilter.value;
+        const selectedNumero = numeroFilter ? numeroFilter.value.trim().toLowerCase() : "";
+        const selectedDesde = calPendingDesde || "";
+        const selectedHasta = calPendingHasta || "";
+        const selectedVigencia = vigenciaFilter.value;
+        const selectedEstado = estadoFilter ? estadoFilter.value : "";
+
+        currentFilteredData = misDatos.filter(item => {
+            if (selectedArea && item["AREA RESPONSABLE"] !== selectedArea) return false;
+            if (selectedNumero && !String(item["N"] ?? "").toLowerCase().includes(selectedNumero)) return false;
+            if (!itemMatchesDateRange(item, selectedDesde, selectedHasta)) return false;
+            const vigenciaActual = getVigencia(item);
+            if (selectedVigencia) {
+                if (selectedVigencia === "Vencido" && (vigenciaActual === "Vencido" || vigenciaActual === "En Mantenimiento")) {}
+                else if (selectedVigencia !== vigenciaActual) return false;
+            }
+            if (selectedEstado !== "") {
+                if (getEstado(item) !== selectedEstado) return false;
+            }
             return true;
         });
         renderTable(currentFilteredData);
     }
 
-    function compararNumeros(a,b) {
-        const na=Number(String(a["N"]??"").replace(",",".")), nb=Number(String(b["N"]??"").replace(",","."));
-        if(Number.isFinite(na)&&Number.isFinite(nb)&&na!==nb) return na-nb;
-        return String(a["N"]??"").localeCompare(String(b["N"]??""),"es",{numeric:true});
+    function compararNumeros(a, b) {
+        const na = Number(String(a["N"] ?? "").replace(",", "."));
+        const nb = Number(String(b["N"] ?? "").replace(",", "."));
+        if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+        return String(a["N"] ?? "").localeCompare(String(b["N"] ?? ""), "es", { numeric: true });
     }
 
     function poblarAreas() {
-        const areas=[...new Set(misDatos.map(item=>String(item["AREA RESPONSABLE"]??"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"}));
-        areaOptions.innerHTML=""; areas.forEach(a=>{ const opt=document.createElement("option"); opt.value=a; areaOptions.appendChild(opt); });
+        const areas = [...new Set(misDatos.map(item => String(item["AREA RESPONSABLE"] ?? "").trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+        areaOptions.innerHTML = "";
+        areas.forEach(area => { const opt = document.createElement("option"); opt.value = area; areaOptions.appendChild(opt); });
     }
 
+    // ============================================================
+    //  RENDER TABLA
+    // ============================================================
     function renderTable(data) {
-        tableBody.innerHTML="";
-        if(data.length===0){ tableBody.innerHTML=`<tr><td colspan="7" style="text-align:center; padding:20px;">No hay resultados.</td></tr>`; return; }
-        [...data].sort(compararNumeros).forEach((item)=>{
-            const vigencia=getVigencia(item), condicion=getCondicion(item), estado=getEstado(item), ubicacionPrestamo=item.ubicacion_prestamo||"-";
-            const row=document.createElement('tr');
-            row.setAttribute('data-index',misDatos.indexOf(item));
-            row.innerHTML=`<td>${item["N"]||"-"}</td><td>${item["AREA RESPONSABLE"]||"-"}</td><td>${item["UBICACION"]||"-"}</td><td>${ubicacionPrestamo}</td><td><span class="badge ${getBadgeClass(vigencia)}">${vigencia}</span></td><td><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></td><td><span class="badge ${getBadgeClass(estado)}">${estado}</span></td>`;
-            row.addEventListener('click',()=>{ currentItemIndex=parseInt(row.getAttribute('data-index')); showModal(misDatos[currentItemIndex]); });
+        tableBody.innerHTML = "";
+        if (data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">No hay resultados.</td></tr>`;
+            return;
+        }
+        [...data].sort(compararNumeros).forEach((item) => {
+            const vigencia = getVigencia(item);
+            const condicion = getCondicion(item);
+            const estado = getEstado(item);
+            const ubicacionPrestamo = item.ubicacion_prestamo || "-";
+            const row = document.createElement('tr');
+            row.setAttribute('data-index', misDatos.indexOf(item));
+            row.innerHTML = `
+                <td>${item["N"] || "-"}</td>
+                <td>${item["AREA RESPONSABLE"] || "-"}</td>
+                <td>${item["UBICACION"] || "-"}</td>
+                <td>${ubicacionPrestamo}</td>
+                <td><span class="badge ${getBadgeClass(vigencia)}">${vigencia}</span></td>
+                <td><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></td>
+                <td><span class="badge ${getBadgeClass(estado)}">${estado}</span></td>
+            `;
+            row.addEventListener('click', () => {
+                currentItemIndex = parseInt(row.getAttribute('data-index'));
+                showModal(misDatos[currentItemIndex]);
+            });
             tableBody.appendChild(row);
         });
     }
 
-    // ===== HISTORIAL Y OBSERVACIONES =====
+    // ============================================================
+    //  HISTORIAL Y OBSERVACIONES
+    // ============================================================
     function verHistorial() {
-        const historyBody=document.getElementById('history-body');
-        historyBody.innerHTML='';
-        if(historialCompleto.length===0){ historyBody.innerHTML=`<tr><td colspan="5" style="text-align:center; padding:20px;">No hay movimientos registrados.</td></tr>`; }
-        else { historialCompleto.forEach(m=>{ historyBody.innerHTML+=`<tr><td>${m.fecha}</td><td><strong>${m.no}</strong></td><td>${m.tipo}</td><td>${m.personal}</td><td>${m.detalle}</td></tr>`; }); }
+        const historyBody = document.getElementById('history-body');
+        historyBody.innerHTML = '';
+        if (historialCompleto.length === 0) {
+            historyBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">No hay movimientos registrados.</td></tr>`;
+        } else {
+            historialCompleto.forEach(mov => {
+                historyBody.innerHTML += `<tr><td>${mov.fecha}</td><td><strong>${mov.no}</strong></td><td>${mov.tipo}</td><td>${mov.personal}</td><td>${mov.detalle}</td></tr>`;
+            });
+        }
         historyModal.classList.add('active');
     }
 
-    function verObservacionesGenerales(){ renderizarListaObservacionesGenerales(); observationsModal.classList.add('active'); }
-
-    function renderizarListaObservacionesGenerales() {
-        const obsBody=document.getElementById('observations-body');
-        obsBody.innerHTML='';
-        if(observacionesPublicas.length===0){ obsBody.innerHTML=`<tr><td colspan="4" style="text-align:center; padding:20px;">No hay observaciones registradas.</td></tr>`; return; }
-        observacionesPublicas.forEach((o,index)=>{ obsBody.innerHTML+=`<tr><td>${o.fecha}</td><td><strong>${o.no}</strong></td><td>${o.texto}</td><td><button onclick="eliminarObservacion(${index})" style="background:#dc2626; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">Eliminar</button></td></tr>`; });
+    function verObservacionesGenerales() {
+        renderizarListaObservacionesGenerales();
+        observationsModal.classList.add('active');
     }
 
-    function abrirFormularioObservacion(itemIndex){ const item=misDatos[itemIndex]; closeModal(); document.getElementById('obs-extintor-no').value=item["N"]; document.getElementById('obs-texto-detalle').value=''; observationFormModal.classList.add('active'); }
-    function closeObservationFormModal(){ observationFormModal.classList.remove('active'); }
+    function renderizarListaObservacionesGenerales() {
+        const obsBody = document.getElementById('observations-body');
+        obsBody.innerHTML = '';
+        if (observacionesPublicas.length === 0) {
+            obsBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">No hay observaciones registradas.</td></tr>`;
+            return;
+        }
+        observacionesPublicas.forEach((o, index) => {
+            obsBody.innerHTML += `
+                <tr>
+                    <td>${o.fecha}</td>
+                    <td><strong>${o.no}</strong></td>
+                    <td>${o.texto}</td>
+                    <td><button onclick="eliminarObservacion(${index})" style="background:#dc2626; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">Eliminar</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    function abrirFormularioObservacion(itemIndex) {
+        const item = misDatos[itemIndex];
+        closeModal();
+        document.getElementById('obs-extintor-no').value = item["N"];
+        document.getElementById('obs-texto-detalle').value = '';
+        observationFormModal.classList.add('active');
+    }
+
+    function closeObservationFormModal() { observationFormModal.classList.remove('active'); }
 
     async function guardarObservacionPublica() {
-        const no=document.getElementById('obs-extintor-no').value.trim(), texto=document.getElementById('obs-texto-detalle').value.trim();
-        if(!texto){ await showGenericModal('Por favor escriba una observación.','Aviso'); return; }
-        const {data,error}=await supabaseClient.from(TABLA_OBSERVACIONES).insert({n_extintor:no,texto:texto}).select().single();
-        if(error){ console.error(error); await showGenericModal('No se pudo guardar: '+error.message,'Error'); return; }
-        observacionesPublicas.push({id:data.id,no:data.n_extintor,texto:data.texto,fecha:new Date(data.created_at).toLocaleDateString('es-ES')});
-        closeObservationFormModal(); await showGenericModal('¡Observación registrada!','Éxito'); renderizarListaObservacionesGenerales();
+        const no = document.getElementById('obs-extintor-no').value.trim();
+        const texto = document.getElementById('obs-texto-detalle').value.trim();
+        if (!texto) { await showGenericModal('Por favor escriba una observación.', 'Aviso'); return; }
+        const { data, error } = await supabaseClient.from(TABLA_OBSERVACIONES).insert({ n_extintor: no, texto: texto }).select().single();
+        if (error) { console.error(error); await showGenericModal('No se pudo guardar: ' + error.message, 'Error'); return; }
+        observacionesPublicas.push({ id: data.id, no: data.n_extintor, texto: data.texto, fecha: new Date(data.created_at).toLocaleDateString('es-ES') });
+        closeObservationFormModal();
+        await showGenericModal('¡Observación registrada!', 'Éxito');
+        renderizarListaObservacionesGenerales();
     }
 
     async function eliminarObservacion(index) {
-        if(await showGenericModal('¿Desea eliminar esta observación?','Confirmar','Sí','No')){
-            const o=observacionesPublicas[index];
-            const {error}=await supabaseClient.from(TABLA_OBSERVACIONES).delete().eq('id',o.id);
-            if(error){ console.error(error); await showGenericModal('No se pudo eliminar: '+error.message,'Error'); return; }
-            observacionesPublicas.splice(index,1); renderizarListaObservacionesGenerales();
+        if (await showGenericModal('¿Desea eliminar esta observación?', 'Confirmar', 'Sí', 'No')) {
+            const o = observacionesPublicas[index];
+            const { error } = await supabaseClient.from(TABLA_OBSERVACIONES).delete().eq('id', o.id);
+            if (error) { console.error(error); await showGenericModal('No se pudo eliminar: ' + error.message, 'Error'); return; }
+            observacionesPublicas.splice(index, 1);
+            renderizarListaObservacionesGenerales();
         }
     }
 
-    function closeHistoryModal(){ historyModal.classList.remove('active'); }
-    function closeObservationsModal(){ observationsModal.classList.remove('active'); }
+    function closeHistoryModal() { historyModal.classList.remove('active'); }
+    function closeObservationsModal() { observationsModal.classList.remove('active'); }
 
-    // ===== EXPORTAR EXCEL =====
+    // ============================================================
+    //  EXPORTAR EXCEL
+    // ============================================================
     function exportarExcel() {
-        let datosAExportar=currentFilteredData.length>0?currentFilteredData:misDatos;
-        const todasLasClaves=[...new Set(misDatos.flatMap(obj=>Object.keys(obj)))];
-        let html=`<h3 style="color:#16a34a;">Inventario Principal de Extintores</h3><table border="1" style="font-size:12px;"><thead><tr style="background:#16a34a;color:#fff;">${todasLasClaves.map(c=>`<th>${c}</th>`).join('')}<th>Vigencia Actual</th><th>Condición Actual</th><th>Estado Actual</th></tr></thead><tbody>`;
-        datosAExportar.forEach(item=>{ html+=`<tr>`; todasLasClaves.forEach(c=>{ html+=`<td>${limpiar(item[c])}</td>`; }); html+=`<td>${getVigencia(item)}</td><td>${getCondicion(item)}</td><td>${getEstado(item)}</td></tr>`; });
-        html+=`</tbody></table><br><br>`;
-        html+=`<h3 style="color:#0284c7;">Reporte General de Observaciones</h3><table border="1" style="font-size:12px;"><thead><tr style="background:#0284c7;color:#fff;"><th>Fecha</th><th>N Extintor</th><th>Observación</th></tr></thead><tbody>`;
-        if(observacionesPublicas.length===0) html+=`<tr><td colspan="3" style="text-align:center;">No hay observaciones.</td></tr>`;
-        else observacionesPublicas.forEach(o=>{ html+=`<tr><td>${limpiar(o.fecha)}</td><td>${limpiar(o.no)}</td><td>${limpiar(o.texto)}</td></tr>`; });
-        html+=`</tbody></table><br><br>`;
-        html+=`<h3 style="color:#2563eb;">Historial de Movimientos</h3><table border="1" style="font-size:12px;"><thead><tr style="background:#2563eb;color:#fff;"><th>Fecha</th><th>N Extintor</th><th>Tipo</th><th>Personal</th><th>Detalle</th></tr></thead><tbody>`;
-        if(historialCompleto.length===0) html+=`<tr><td colspan="5" style="text-align:center;">No hay movimientos.</td></tr>`;
-        else historialCompleto.forEach(m=>{ html+=`<tr><td>${limpiar(m.fecha)}</td><td>${limpiar(m.no)}</td><td>${limpiar(m.tipo)}</td><td>${limpiar(m.personal)}</td><td>${limpiar(m.detalle)}</td></tr>`; });
-        html+=`</tbody></table>`;
-        const blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8;'});
-        const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Reporte_General_Extintores_${new Date().toISOString().slice(0,10)}.xls`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        let datosAExportar = currentFilteredData.length > 0 ? currentFilteredData : misDatos;
+        const todasLasClaves = [...new Set(misDatos.flatMap(obj => Object.keys(obj)))];
+        let html = `
+            <h3 style="color:#16a34a;">Inventario Principal de Extintores</h3>
+            <table border="1" style="font-size:12px;">
+                <thead><tr style="background:#16a34a;color:#fff;">${todasLasClaves.map(c => `<th>${c}</th>`).join('')}<th>Vigencia Actual</th><th>Condición Actual</th><th>Estado Actual</th></tr></thead>
+                <tbody>
+        `;
+        datosAExportar.forEach(item => {
+            html += `<tr>`;
+            todasLasClaves.forEach(c => { html += `<td>${limpiar(item[c])}</td>`; });
+            html += `<td>${getVigencia(item)}</td><td>${getCondicion(item)}</td><td>${getEstado(item)}</td></tr>`;
+        });
+        html += `</tbody></table><br><br>`;
+        html += `<h3 style="color:#0284c7;">Reporte General de Observaciones</h3><table border="1" style="font-size:12px;"><thead><tr style="background:#0284c7;color:#fff;"><th>Fecha</th><th>N Extintor</th><th>Observación</th></tr></thead><tbody>`;
+        if (observacionesPublicas.length === 0) html += `<tr><td colspan="3" style="text-align:center;">No hay observaciones.</td></tr>`;
+        else observacionesPublicas.forEach(o => { html += `<tr><td>${limpiar(o.fecha)}</td><td>${limpiar(o.no)}</td><td>${limpiar(o.texto)}</td></tr>`; });
+        html += `</tbody></table><br><br>`;
+        html += `<h3 style="color:#2563eb;">Historial de Movimientos</h3><table border="1" style="font-size:12px;"><thead><tr style="background:#2563eb;color:#fff;"><th>Fecha</th><th>N Extintor</th><th>Tipo</th><th>Personal</th><th>Detalle</th></tr></thead><tbody>`;
+        if (historialCompleto.length === 0) html += `<tr><td colspan="5" style="text-align:center;">No hay movimientos.</td></tr>`;
+        else historialCompleto.forEach(m => { html += `<tr><td>${limpiar(m.fecha)}</td><td>${limpiar(m.no)}</td><td>${limpiar(m.tipo)}</td><td>${limpiar(m.personal)}</td><td>${limpiar(m.detalle)}</td></tr>`; });
+        html += `</tbody></table>`;
+        const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Reporte_General_Extintores_${new Date().toISOString().slice(0,10)}.xls`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
-    // ===== MODAL DETALLES =====
+    // ============================================================
+    //  MODAL DETALLES
+    // ============================================================
     function showModal(item) {
-        const modalBody=document.getElementById('modal-body'), modalActions=document.getElementById('modal-actions');
-        const vigencia=getVigencia(item);
-        const loanData=internalLoans[item["N"]], outgoingData=outgoingLoans[item["N"]], externalData=externalLoans[item["N"]];
-        let loanInfoHTML='';
-        if(loanData) loanInfoHTML=`<div class="modal-section" style="background:#fefce8;border:1px solid #fef08a;padding:12px;border-radius:6px;"><div class="modal-section-title" style="color:#854d0e;">Información de Mantenimiento / Reemplazo</div><div class="modal-row"><label>Personal responsable:</label><value><strong>${limpiar(loanData.personal)}</strong></value></div><div class="modal-row"><label>Extintor/Garantía entregada:</label><value><strong>${limpiar(loanData.reemplazo)}</strong></value></div><div class="modal-row"><label>Tipo de atención:</label><value><strong>${loanData.esInterno?'Préstamo Interno (Stock)':'Garantía Externa'}</strong></value></div><div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(loanData.fecha)}</value></div></div>`;
-        else if(outgoingData) loanInfoHTML=`<div class="modal-section" style="background:#fff7ed;border:1px solid #fed7aa;padding:12px;border-radius:6px;"><div class="modal-section-title" style="color:#9a3412;">Detalle de Salida por Préstamo Interno</div><div class="modal-row"><label>Salió prestado al Area:</label><value><strong>${limpiar(outgoingData.areaDestino)}</strong></value></div><div class="modal-row"><label>En reemplazo del Extintor N:</label><value><strong>${limpiar(outgoingData.extintorReemplazado)}</strong></value></div><div class="modal-row"><label>Entregado a / Solicitado por:</label><value><strong>${limpiar(outgoingData.personal)}</strong></value></div><div class="modal-row"><label>Fecha de Salida:</label><value>${limpiar(outgoingData.fecha)}</value></div></div>`;
-        else if(externalData) loanInfoHTML=`<div class="modal-section" style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:6px;"><div class="modal-section-title" style="color:#1d4ed8;">Garantía Externa</div><div class="modal-row"><label>Personal responsable:</label><value><strong>${limpiar(externalData.personal)}</strong></value></div><div class="modal-row"><label>Extintor de servicio:</label><value><strong>${limpiar(externalData.reemplazo)}</strong></value></div><div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(externalData.fecha)}</value></div></div>`;
+        const modalBody = document.getElementById('modal-body');
+        const modalActions = document.getElementById('modal-actions');
+        const vigencia = getVigencia(item);
+        const loanData = internalLoans[item["N"]];
+        const outgoingData = outgoingLoans[item["N"]];
+        const externalData = externalLoans[item["N"]];
+        let loanInfoHTML = '';
+        if (loanData) {
+            loanInfoHTML = `
+                <div class="modal-section" style="background:#fefce8;border:1px solid #fef08a;padding:12px;border-radius:6px;">
+                    <div class="modal-section-title" style="color:#854d0e;">Información de Mantenimiento / Reemplazo</div>
+                    <div class="modal-row"><label>Personal responsable:</label><value><strong>${limpiar(loanData.personal)}</strong></value></div>
+                    <div class="modal-row"><label>Extintor/Garantía entregada:</label><value><strong>${limpiar(loanData.reemplazo)}</strong></value></div>
+                    <div class="modal-row"><label>Tipo de atención:</label><value><strong>${loanData.esInterno ? 'Préstamo Interno (Stock)' : 'Garantía Externa'}</strong></value></div>
+                    <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(loanData.fecha)}</value></div>
+                </div>`;
+        } else if (outgoingData) {
+            loanInfoHTML = `
+                <div class="modal-section" style="background:#fff7ed;border:1px solid #fed7aa;padding:12px;border-radius:6px;">
+                    <div class="modal-section-title" style="color:#9a3412;">Detalle de Salida por Préstamo Interno</div>
+                    <div class="modal-row"><label>Salió prestado al Area:</label><value><strong>${limpiar(outgoingData.areaDestino)}</strong></value></div>
+                    <div class="modal-row"><label>En reemplazo del Extintor N:</label><value><strong>${limpiar(outgoingData.extintorReemplazado)}</strong></value></div>
+                    <div class="modal-row"><label>Entregado a / Solicitado por:</label><value><strong>${limpiar(outgoingData.personal)}</strong></value></div>
+                    <div class="modal-row"><label>Fecha de Salida:</label><value>${limpiar(outgoingData.fecha)}</value></div>
+                </div>`;
+        } else if (externalData) {
+            loanInfoHTML = `
+                <div class="modal-section" style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:6px;">
+                    <div class="modal-section-title" style="color:#1d4ed8;">Garantía Externa</div>
+                    <div class="modal-row"><label>Personal responsable:</label><value><strong>${limpiar(externalData.personal)}</strong></value></div>
+                    <div class="modal-row"><label>Extintor de servicio:</label><value><strong>${limpiar(externalData.reemplazo)}</strong></value></div>
+                    <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(externalData.fecha)}</value></div>
+                </div>`;
+        }
 
-        modalBody.innerHTML=`
-            <div class="modal-section"><div class="modal-section-title">Información General</div><div class="modal-row"><label>N Extintor:</label><value>${limpiar(item["N"])}</value></div><div class="modal-row"><label>N Serie Actual:</label><value>${limpiar(item["N SERIE ACTUAL"])}</value></div><div class="modal-row"><label>Tipo:</label><value>${limpiar(item["TIPO"])}</value></div><div class="modal-row"><label>Capacidad:</label><value>${limpiar(item["CAP."])}</value></div></div>
-            <div class="modal-section"><div class="modal-section-title">Ubicacion</div><div class="modal-row"><label>Area Responsable:</label><value>${limpiar(item["AREA RESPONSABLE"])}</value></div><div class="modal-row"><label>Ubicacion:</label><value>${limpiar(item["UBICACION"])}</value></div><div class="modal-row"><label>Ubicación Préstamo:</label><value>${limpiar(item.ubicacion_prestamo)}</value></div></div>
-            <div class="modal-section"><div class="modal-section-title">Estado y Vigencia</div><div class="modal-row"><label>Vigencia:</label><value><span class="badge ${getBadgeClass(vigencia)}">${vigencia}</span></value></div><div class="modal-row"><label>Condicion:</label><value><span class="badge ${getBadgeClass(getCondicion(item))}">${getCondicion(item)}</span></value></div><div class="modal-row"><label>Estado:</label><value><span class="badge ${getBadgeClass(getEstado(item))}">${getEstado(item)}</span></value></div><div class="modal-row"><label>Vencimiento PH:</label><value>${formatMonthYear(item["ph_vencimiento"])}</value></div><div class="modal-row"><label>Vencimiento recarga:</label><value>${formatMonthYear(item["F. VENC."])}</value></div></div>
+        modalBody.innerHTML = `
+            <div class="modal-section"><div class="modal-section-title">Información General</div>
+                <div class="modal-row"><label>N Extintor:</label><value>${limpiar(item["N"])}</value></div>
+                <div class="modal-row"><label>N Serie Actual:</label><value>${limpiar(item["N SERIE ACTUAL"])}</value></div>
+                <div class="modal-row"><label>Tipo:</label><value>${limpiar(item["TIPO"])}</value></div>
+                <div class="modal-row"><label>Capacidad:</label><value>${limpiar(item["CAP."])}</value></div>
+            </div>
+            <div class="modal-section"><div class="modal-section-title">Ubicacion</div>
+                <div class="modal-row"><label>Area Responsable:</label><value>${limpiar(item["AREA RESPONSABLE"])}</value></div>
+                <div class="modal-row"><label>Ubicacion:</label><value>${limpiar(item["UBICACION"])}</value></div>
+                <div class="modal-row"><label>Ubicación Préstamo:</label><value>${limpiar(item.ubicacion_prestamo)}</value></div>
+            </div>
+            <div class="modal-section"><div class="modal-section-title">Estado y Vigencia</div>
+                <div class="modal-row"><label>Vigencia:</label><value><span class="badge ${getBadgeClass(vigencia)}">${vigencia}</span></value></div>
+                <div class="modal-row"><label>Condicion:</label><value><span class="badge ${getBadgeClass(getCondicion(item))}">${getCondicion(item)}</span></value></div>
+                <div class="modal-row"><label>Estado:</label><value><span class="badge ${getBadgeClass(getEstado(item))}">${getEstado(item)}</span></value></div>
+                <div class="modal-row"><label>Vencimiento PH:</label><value>${formatMonthYear(item["ph_vencimiento"])}</value></div>
+                <div class="modal-row"><label>Vencimiento recarga:</label><value>${formatMonthYear(item["F. VENC."])}</value></div>
+            </div>
             ${loanInfoHTML}`;
 
-        let botonesAccion=`<button class="btn btn-primary" style="background-color:#059669;color:white;" onclick="abrirFormularioObservacion(${currentItemIndex})">✏️ Registrar Observación</button>`;
-        const estadoActual=getEstado(item);
-        if(estadoActual==="Disponible" && getVigencia(item)==="Vigente") botonesAccion+=`<button class="btn btn-warning" onclick="abrirPrestamoUnidad(${currentItemIndex})">🏢 Préstamo a unidad</button>`;
-        if(isAdmin){
-            if(hasActiveLoan(item)||hasActiveExternalLoan(item)||isOutgoingLoan(item)) botonesAccion+=`<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})">Préstamo Terminado / Retorno</button>`;
-            else if(!isOutgoingLoan(item)&&!externalData){
-                if(estadoActual==="Disponible"||estadoActual==="No Disponible") botonesAccion+=`<button class="btn" style="background-color:#dc3545;color:white;" onclick="openLoanForm(${currentItemIndex})">Utilizado (Préstamo Interno)</button>`;
-                else botonesAccion+=`<button class="btn btn-primary" style="background-color:#2563eb;color:white;" onclick="openLoanForm(${currentItemIndex})">Registrar Garantía Externa</button>`;
-            }
+        let botonesAccion = `<button class="btn btn-primary" style="background-color:#059669;color:white;" onclick="abrirFormularioObservacion(${currentItemIndex})">✏️ Registrar Observación</button>`;
+        const estadoActual = getEstado(item);
+        if (estadoActual === "Disponible" && getVigencia(item) === "Vigente") {
+            botonesAccion += `<button class="btn btn-warning" onclick="abrirPrestamoUnidad(${currentItemIndex})">🏢 Préstamo a unidad</button>`;
         }
-        if(isAdmin) botonesAccion+=`<button class="btn" style="background-color:#7c3aed;color:white;" onclick="abrirEditor(${currentItemIndex})">Editar registro</button>`;
-        botonesAccion+=`<button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>`;
-        modalActions.innerHTML=botonesAccion;
+        if (isAdmin) {
+            if (hasActiveLoan(item) || hasActiveExternalLoan(item) || isOutgoingLoan(item)) {
+                botonesAccion += `<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})">Préstamo Terminado / Retorno</button>`;
+            } else if (!isOutgoingLoan(item) && !externalData) {
+                if (estadoActual === "Disponible" || estadoActual === "No Disponible") {
+                    botonesAccion += `<button class="btn" style="background-color:#dc3545;color:white;" onclick="openLoanForm(${currentItemIndex})">Utilizado (Préstamo Interno)</button>`;
+                } else {
+                    botonesAccion += `<button class="btn btn-primary" style="background-color:#2563eb;color:white;" onclick="openLoanForm(${currentItemIndex})">Registrar Garantía Externa</button>`;
+                }
+            }
+            botonesAccion += `<button class="btn" style="background-color:#7c3aed;color:white;" onclick="abrirEditor(${currentItemIndex})">Editar registro</button>`;
+        }
+        botonesAccion += `<button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>`;
+        modalActions.innerHTML = botonesAccion;
         detailModal.classList.add('active');
     }
-    function closeModal(){ detailModal.classList.remove('active'); }
 
-    // ===== PRÉSTAMO A UNIDAD =====
-    function abrirPrestamoUnidad(itemIndex){ currentItemIndex=itemIndex; closeModal(); document.getElementById('unidad-solicitante').value=''; document.getElementById('area-solicitante').value=''; unitLoanModal.classList.add('active'); }
-    function closeUnitLoanModal(){ unitLoanModal.classList.remove('active'); }
+    function closeModal() { detailModal.classList.remove('active'); }
 
-    async function guardarPrestamoUnidad() {
-        const unidad=document.getElementById('unidad-solicitante').value.trim(), area=document.getElementById('area-solicitante').value.trim();
-        if(!unidad||!area){ await showGenericModal('Debe completar ambos campos.','Aviso'); return; }
-        const item=misDatos[currentItemIndex], detalle=`Préstamo a unidad: ${unidad} - Área: ${area}`;
-        const {error}=await supabaseClient.from(TABLA_MOVIMIENTOS).insert({n_extintor:item["N"], tipo:'prestamo_unidad', personal:'Sistema', detalle, activo:false});
-        if(error){ console.error(error); await showGenericModal('No se pudo registrar: '+error.message,'Error'); return; }
-        historialCompleto.push({fecha:new Date().toLocaleString('es-ES'), no:item["N"], tipo:'Préstamo a unidad', personal:'Sistema', detalle});
-        closeUnitLoanModal(); await showGenericModal('Préstamo a unidad registrado correctamente.','Éxito');
+    // ============================================================
+    //  PRÉSTAMO A UNIDAD
+    // ============================================================
+    function abrirPrestamoUnidad(itemIndex) {
+        currentItemIndex = itemIndex;
+        closeModal();
+        document.getElementById('unidad-solicitante').value = '';
+        document.getElementById('area-solicitante').value = '';
+        unitLoanModal.classList.add('active');
     }
 
-    // ===== PRÉSTAMO INTERNO / GARANTÍA =====
-    function openLoanForm(itemIndex){ currentItemIndex=itemIndex; closeModal(); document.getElementById('personal-cambio').value=''; document.getElementById('extintor-reemplazo').value=''; loanModal.classList.add('active'); }
-    function closeLoanModal(){ loanModal.classList.remove('active'); }
+    function closeUnitLoanModal() { unitLoanModal.classList.remove('active'); }
+
+    async function guardarPrestamoUnidad() {
+        const unidad = document.getElementById('unidad-solicitante').value.trim();
+        const area = document.getElementById('area-solicitante').value.trim();
+        if (!unidad || !area) { await showGenericModal('Debe completar ambos campos.', 'Aviso'); return; }
+        const item = misDatos[currentItemIndex];
+        const detalle = `Préstamo a unidad: ${unidad} - Área: ${area}`;
+        const { error } = await supabaseClient.from(TABLA_MOVIMIENTOS).insert({
+            n_extintor: item["N"],
+            tipo: 'prestamo_unidad',
+            personal: 'Sistema',
+            detalle: detalle,
+            activo: false
+        });
+        if (error) { console.error(error); await showGenericModal('No se pudo registrar: ' + error.message, 'Error'); return; }
+        historialCompleto.push({
+            fecha: new Date().toLocaleString('es-ES'),
+            no: item["N"],
+            tipo: 'Préstamo a unidad',
+            personal: 'Sistema',
+            detalle: detalle
+        });
+        closeUnitLoanModal();
+        await showGenericModal('Préstamo a unidad registrado correctamente.', 'Éxito');
+    }
+
+    // ============================================================
+    //  PRÉSTAMO INTERNO / GARANTÍA
+    // ============================================================
+    function openLoanForm(itemIndex) {
+        currentItemIndex = itemIndex;
+        closeModal();
+        document.getElementById('personal-cambio').value = '';
+        document.getElementById('extintor-reemplazo').value = '';
+        loanModal.classList.add('active');
+    }
+
+    function closeLoanModal() { loanModal.classList.remove('active'); }
 
     async function guardarCambio() {
-        const personal=document.getElementById('personal-cambio').value.trim(), reemplazo=document.getElementById('extintor-reemplazo').value.trim();
-        if(!personal||!reemplazo){ await showGenericModal('Por favor complete ambos campos.','Aviso'); return; }
-        const item=misDatos[currentItemIndex], itemNo=String(item["N"]), esVigente=getVigencia(item)==="Vigente";
-        if(esVigente){
-            const extintorStock=misDatos.find(e=>String(e["N"]).trim()===String(reemplazo).trim());
-            if(!extintorStock){ await showGenericModal('No se encontró el extintor de reemplazo en el inventario.','Error'); return; }
-            const {error:err1}=await supabaseClient.from(TABLA_EXTINTORES).update({prestado:null, ubicacion_prestamo:`Mantenimiento / Almacén SST | Reemplaza al N ${reemplazo} | Personal: ${personal}`}).eq('N',itemNo);
-            if(err1){ await showGenericModal('No se pudo actualizar el extintor que requiere cambio.','Error'); return; }
-            const {error:err2}=await supabaseClient.from(TABLA_EXTINTORES).update({prestado:'SI', ubicacion_prestamo:`Préstamo a: ${item["AREA RESPONSABLE"]} | Reemplaza al N ${itemNo}`}).eq('N',String(extintorStock["N"]));
-            if(err2){ await showGenericModal('No se pudo marcar el extintor de reemplazo como prestado.','Error'); return; }
-            const {error:err3}=await supabaseClient.from(TABLA_MOVIMIENTOS).insert([{n_extintor:itemNo,tipo:'garantia',personal,reemplazo,area_destino:item["AREA RESPONSABLE"],extintor_reemplazado:itemNo,detalle:'Extintor original en Mantenimiento / Almacén SST',activo:true},{n_extintor:String(extintorStock["N"]),tipo:'salida',personal,area_destino:item["AREA RESPONSABLE"],extintor_reemplazado:itemNo,detalle:`Extintor de reemplazo prestado en lugar del N ${itemNo}`,activo:true}]);
-            if(err3){ await showGenericModal('Los estados se actualizaron, pero no se pudo guardar el historial.','Aviso'); return; }
+        const personal = document.getElementById('personal-cambio').value.trim();
+        const reemplazo = document.getElementById('extintor-reemplazo').value.trim();
+        if (!personal || !reemplazo) { await showGenericModal('Por favor complete ambos campos.', 'Aviso'); return; }
+        const item = misDatos[currentItemIndex];
+        const itemNo = String(item["N"]);
+        const esVigente = getVigencia(item) === "Vigente";
+
+        if (esVigente) {
+            const extintorStock = misDatos.find(e => String(e["N"]).trim() === String(reemplazo).trim());
+            if (!extintorStock) { await showGenericModal('No se encontró el extintor de reemplazo en el inventario.', 'Error'); return; }
+            const { error: err1 } = await supabaseClient.from(TABLA_EXTINTORES).update({
+                prestado: null,
+                ubicacion_prestamo: `Mantenimiento / Almacén SST | Reemplaza al N ${reemplazo} | Personal: ${personal}`
+            }).eq('N', itemNo);
+            if (err1) { await showGenericModal('No se pudo actualizar el extintor que requiere cambio.', 'Error'); return; }
+            const { error: err2 } = await supabaseClient.from(TABLA_EXTINTORES).update({
+                prestado: 'SI',
+                ubicacion_prestamo: `Préstamo a: ${item["AREA RESPONSABLE"]} | Reemplaza al N ${itemNo}`
+            }).eq('N', String(extintorStock["N"]));
+            if (err2) { await showGenericModal('No se pudo marcar el extintor de reemplazo como prestado.', 'Error'); return; }
+            const { error: err3 } = await supabaseClient.from(TABLA_MOVIMIENTOS).insert([
+                { n_extintor: itemNo, tipo: 'garantia', personal, reemplazo, area_destino: item["AREA RESPONSABLE"], extintor_reemplazado: itemNo, detalle: 'Extintor original en Mantenimiento / Almacén SST', activo: true },
+                { n_extintor: String(extintorStock["N"]), tipo: 'salida', personal, area_destino: item["AREA RESPONSABLE"], extintor_reemplazado: itemNo, detalle: `Extintor de reemplazo prestado en lugar del N ${itemNo}`, activo: true }
+            ]);
+            if (err3) { await showGenericModal('Los estados se actualizaron, pero no se pudo guardar el historial.', 'Aviso'); return; }
         } else {
-            const {error:err1}=await supabaseClient.from(TABLA_EXTINTORES).update({prestado:null, ubicacion_prestamo:`Mantenimiento por garantía externa | Reemplazo: ${reemplazo} | Personal: ${personal}`}).eq('N',itemNo);
-            if(err1){ await showGenericModal('No se pudo marcar el extintor como mantenimiento.','Error'); return; }
-            const {error:err2}=await supabaseClient.from(TABLA_MOVIMIENTOS).insert({n_extintor:itemNo,tipo:'garantia',personal,reemplazo,detalle:'Garantía externa de empresa de servicios',activo:true});
-            if(err2){ await showGenericModal('No se pudo guardar la garantía externa.','Error'); return; }
+            const { error: err1 } = await supabaseClient.from(TABLA_EXTINTORES).update({
+                prestado: null,
+                ubicacion_prestamo: `Mantenimiento por garantía externa | Reemplazo: ${reemplazo} | Personal: ${personal}`
+            }).eq('N', itemNo);
+            if (err1) { await showGenericModal('No se pudo marcar el extintor como mantenimiento.', 'Error'); return; }
+            const { error: err2 } = await supabaseClient.from(TABLA_MOVIMIENTOS).insert({
+                n_extintor: itemNo,
+                tipo: 'garantia',
+                personal,
+                reemplazo,
+                detalle: 'Garantía externa de empresa de servicios',
+                activo: true
+            });
+            if (err2) { await showGenericModal('No se pudo guardar la garantía externa.', 'Error'); return; }
         }
-        closeLoanModal(); await showGenericModal('Cambio registrado exitosamente.','Éxito');
-        await refreshData(); await cargarDatosSecundarios(); applyFilters();
+        await showGenericModal('Cambio registrado exitosamente.', 'Éxito');
+        closeLoanModal();
+        await refreshData();
+        await cargarDatosSecundarios();
+        applyFilters();
     }
 
     async function finalizarPrestamo(itemIndex) {
-        const item=misDatos[itemIndex], itemNo=String(item["N"]);
-        const mantenimiento=internalLoans[itemNo], garantiaExterna=externalLoans[itemNo], salida=outgoingLoans[itemNo];
-        const originalNo=mantenimiento||garantiaExterna?itemNo:(salida?.extintorReemplazado||itemNo);
-        const reemplazoNo=mantenimiento?String(mantenimiento.reemplazo):(salida?itemNo:null);
-        const numerosARetornar=[...new Set([originalNo, reemplazoNo].filter(Boolean).map(String))];
-        const {error}=await supabaseClient.from(TABLA_EXTINTORES).update({prestado:null, ubicacion_prestamo:null}).in('N',numerosARetornar);
-        if(error){ console.error(error); await showGenericModal('No se pudo actualizar la base de datos.','Error'); return; }
-        const nuevaFecha=calcularVencimientoPorPrestamo();
-        const {error:err2}=await supabaseClient.from(TABLA_EXTINTORES).update({"F. VENC.":nuevaFecha, ph_vencimiento:nuevaFecha}).in('N',numerosARetornar);
-        if(err2){ console.error(err2); await showGenericModal('El préstamo terminó, pero no se pudieron actualizar las fechas.','Aviso'); return; }
-        await supabaseClient.from(TABLA_MOVIMIENTOS).update({activo:false}).in('n_extintor',numerosARetornar).eq('activo',true);
-        await supabaseClient.from(TABLA_MOVIMIENTOS).insert({n_extintor:itemNo,tipo:'retorno',personal:'Sistema',detalle:'Préstamo finalizado y extintor retornado',activo:false});
-        await showGenericModal('Préstamo finalizado correctamente.','Éxito');
-        closeModal(); await refreshData(); await cargarDatosSecundarios(); applyFilters();
+        const item = misDatos[itemIndex];
+        const itemNo = String(item["N"]);
+        const mantenimiento = internalLoans[itemNo];
+        const garantiaExterna = externalLoans[itemNo];
+        const salida = outgoingLoans[itemNo];
+        const originalNo = mantenimiento || garantiaExterna ? itemNo : (salida?.extintorReemplazado || itemNo);
+        const reemplazoNo = mantenimiento ? String(mantenimiento.reemplazo) : (salida ? itemNo : null);
+        const numerosARetornar = [...new Set([originalNo, reemplazoNo].filter(Boolean).map(String))];
+        const { error } = await supabaseClient.from(TABLA_EXTINTORES).update({ prestado: null, ubicacion_prestamo: null }).in('N', numerosARetornar);
+        if (error) { console.error(error); await showGenericModal('No se pudo actualizar la base de datos.', 'Error'); return; }
+        const nuevaFecha = calcularVencimientoPorPrestamo();
+        const { error: err2 } = await supabaseClient.from(TABLA_EXTINTORES).update({ "F. VENC.": nuevaFecha, ph_vencimiento: nuevaFecha }).in('N', numerosARetornar);
+        if (err2) { console.error(err2); await showGenericModal('El préstamo terminó, pero no se pudieron actualizar las fechas.', 'Aviso'); return; }
+        await supabaseClient.from(TABLA_MOVIMIENTOS).update({ activo: false }).in('n_extintor', numerosARetornar).eq('activo', true);
+        await supabaseClient.from(TABLA_MOVIMIENTOS).insert({ n_extintor: itemNo, tipo: 'retorno', personal: 'Sistema', detalle: 'Préstamo finalizado y extintor retornado', activo: false });
+        await showGenericModal('Préstamo finalizado correctamente.', 'Éxito');
+        closeModal();
+        await refreshData();
+        await cargarDatosSecundarios();
+        applyFilters();
     }
 
-    // ===== EDITOR =====
+    // ============================================================
+    //  EDITOR (SIN CAMPOS MANUALES)
+    // ============================================================
     function abrirEditor(itemIndex) {
-        if(!isAdmin) return;
-        currentItemIndex=itemIndex;
-        const item=misDatos[itemIndex];
-        const editorBody=document.getElementById('editor-body');
-        editorBody.innerHTML='';
-        Object.keys(item).forEach(clave=>{
-            if(['id','created_at','updated_at'].includes(clave)) return;
-            if(clave==='vigencia_manual'||clave==='condicion_manual'||clave==='estado_manual') return;
-            const campo=document.createElement('div'); campo.className='editor-field';
-            const label=document.createElement('label'); label.textContent=clave;
-            const input=String(item[clave]??'').length>70?document.createElement('textarea'):document.createElement('input');
-            input.value=String(item[clave]??''); input.dataset.key=clave;
-            campo.appendChild(label); campo.appendChild(input); editorBody.appendChild(campo);
+        if (!isAdmin) return;
+        currentItemIndex = itemIndex;
+        const item = misDatos[itemIndex];
+        const editorBody = document.getElementById('editor-body');
+        editorBody.innerHTML = '';
+        Object.keys(item).forEach(clave => {
+            if (['id', 'created_at', 'updated_at'].includes(clave)) return;
+            const campo = document.createElement('div');
+            campo.className = 'editor-field';
+            const label = document.createElement('label');
+            label.textContent = clave;
+            const input = String(item[clave] ?? '').length > 70 ? document.createElement('textarea') : document.createElement('input');
+            input.value = String(item[clave] ?? '');
+            input.dataset.key = clave;
+            campo.appendChild(label);
+            campo.appendChild(input);
+            editorBody.appendChild(campo);
         });
-        const opcionesVigencia=['','Vigente','Vencido','En Mantenimiento'];
-        const opcionesCondicion=['','Operativo','No Operativo','Mantenimiento'];
-        const opcionesEstado=['','Disponible','Prestado','Mantenimiento','Almacén SST','No Disponible'];
-        const camposManuales=[{key:'vigencia_manual',label:'Vigencia (manual)',opciones:opcionesVigencia},{key:'condicion_manual',label:'Condición (manual)',opciones:opcionesCondicion},{key:'estado_manual',label:'Estado (manual)',opciones:opcionesEstado}];
-        camposManuales.forEach(({key,label,opciones})=>{
-            const campo=document.createElement('div'); campo.className='editor-field';
-            const lbl=document.createElement('label'); lbl.textContent=label;
-            const select=document.createElement('select'); select.dataset.key=key;
-            opciones.forEach(op=>{ const opt=document.createElement('option'); opt.value=op; opt.textContent=op||'(vacío)'; if(String(item[key]??'')===op) opt.selected=true; select.appendChild(opt); });
-            campo.appendChild(lbl); campo.appendChild(select); editorBody.appendChild(campo);
-        });
-        closeModal(); editorModal.classList.add('active');
+        closeModal();
+        editorModal.classList.add('active');
     }
-    function closeEditorModal(){ editorModal.classList.remove('active'); }
+
+    function closeEditorModal() { editorModal.classList.remove('active'); }
 
     async function guardarEdicion() {
-        if(!isAdmin||currentItemIndex===null) return;
-        const item=misDatos[currentItemIndex];
-        const cambios={};
-        document.querySelectorAll('#editor-body [data-key]').forEach(campo=>{ const clave=campo.dataset.key; if(clave) cambios[clave]=campo.value; });
-        const numeroAnterior=String(item['N']), numeroNuevo=String(cambios['N']??numeroAnterior).trim();
-        if(!numeroNuevo){ await showGenericModal('El número de extintor no puede quedar vacío.','Aviso'); return; }
-        const {error}=await supabaseClient.from(TABLA_EXTINTORES).update(cambios).eq('N',numeroAnterior);
-        if(error){ console.error(error); await showGenericModal('No se pudieron guardar los cambios: '+error.message,'Error'); return; }
-        if(numeroNuevo!==numeroAnterior){
-            await supabaseClient.from(TABLA_MOVIMIENTOS).update({n_extintor:numeroNuevo}).eq('n_extintor',numeroAnterior);
-            await supabaseClient.from(TABLA_OBSERVACIONES).update({n_extintor:numeroNuevo}).eq('n_extintor',numeroAnterior);
+        if (!isAdmin || currentItemIndex === null) return;
+        const item = misDatos[currentItemIndex];
+        const cambios = {};
+        document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
+            const clave = campo.dataset.key;
+            if (clave) cambios[clave] = campo.value;
+        });
+        const numeroAnterior = String(item['N']);
+        const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
+        if (!numeroNuevo) { await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso'); return; }
+        const { error } = await supabaseClient.from(TABLA_EXTINTORES).update(cambios).eq('N', numeroAnterior);
+        if (error) { console.error(error); await showGenericModal('No se pudieron guardar los cambios: ' + error.message, 'Error'); return; }
+        if (numeroNuevo !== numeroAnterior) {
+            await supabaseClient.from(TABLA_MOVIMIENTOS).update({ n_extintor: numeroNuevo }).eq('n_extintor', numeroAnterior);
+            await supabaseClient.from(TABLA_OBSERVACIONES).update({ n_extintor: numeroNuevo }).eq('n_extintor', numeroAnterior);
         }
-        await showGenericModal('Registro actualizado correctamente.','Éxito');
-        closeEditorModal(); await refreshData(); await cargarDatosSecundarios(); poblarAreas(); applyFilters();
+        await showGenericModal('Registro actualizado correctamente.', 'Éxito');
+        closeEditorModal();
+        await refreshData();
+        await cargarDatosSecundarios();
+        poblarAreas();
+        applyFilters();
     }
 
-    // ===== CARGA DE DATOS =====
+    // ============================================================
+    //  CARGA DE DATOS
+    // ============================================================
     async function cargarDatosSecundarios() {
-        const [{data:observaciones, error:obsErr},{data:movimientos, error:movErr}]=await Promise.all([
-            supabaseClient.from(TABLA_OBSERVACIONES).select('*').order('created_at',{ascending:false}),
-            supabaseClient.from(TABLA_MOVIMIENTOS).select('*').order('created_at',{ascending:false})
+        const [{ data: observaciones, error: obsErr }, { data: movimientos, error: movErr }] = await Promise.all([
+            supabaseClient.from(TABLA_OBSERVACIONES).select('*').order('created_at', { ascending: false }),
+            supabaseClient.from(TABLA_MOVIMIENTOS).select('*').order('created_at', { ascending: false })
         ]);
-        if(obsErr) console.error(obsErr); else observacionesPublicas=(observaciones||[]).map(o=>({id:o.id,no:o.n_extintor,texto:o.texto,fecha:new Date(o.created_at).toLocaleDateString('es-ES')}));
-        if(movErr){ console.error(movErr); return; }
-        internalLoans={}; outgoingLoans={}; externalLoans={}; historialCompleto=[];
-        (movimientos||[]).forEach(mov=>{
-            const fecha=new Date(mov.created_at).toLocaleString('es-ES');
-            let tipoTexto=''; if(mov.tipo==='salida') tipoTexto='Préstamo Interno (Salida)'; else if(mov.tipo==='garantia') tipoTexto='Garantía Externa'; else if(mov.tipo==='prestamo_unidad') tipoTexto='Préstamo a unidad'; else tipoTexto='Retorno';
-            historialCompleto.push({fecha,no:mov.n_extintor,tipo:tipoTexto,personal:mov.personal||'-',detalle:mov.detalle||(mov.tipo==='salida'?`Área Destino: ${mov.area_destino||'-'} (Reemplaza al N ${mov.extintor_reemplazado||'-'})`:`Extintor Reemplazo/Garantía entregado: ${mov.reemplazo||'-'}`)});
-            if(!mov.activo) return;
-            if(mov.tipo==='salida'){ outgoingLoans[mov.n_extintor]={personal:mov.personal,areaDestino:mov.area_destino,extintorReemplazado:mov.extintor_reemplazado,fecha}; }
-            else if(mov.tipo==='garantia'){ const esExt=String(mov.detalle||'').toLowerCase().includes('garantía externa'); if(esExt){ externalLoans[mov.n_extintor]={personal:mov.personal,reemplazo:mov.reemplazo,fecha}; } else { internalLoans[mov.n_extintor]={personal:mov.personal,reemplazo:mov.reemplazo,esInterno:true,fecha}; } }
+        if (obsErr) console.error(obsErr);
+        else observacionesPublicas = (observaciones || []).map(o => ({ id: o.id, no: o.n_extintor, texto: o.texto, fecha: new Date(o.created_at).toLocaleDateString('es-ES') }));
+        if (movErr) { console.error(movErr); return; }
+        internalLoans = {}; outgoingLoans = {}; externalLoans = {}; historialCompleto = [];
+        (movimientos || []).forEach(mov => {
+            const fecha = new Date(mov.created_at).toLocaleString('es-ES');
+            let tipoTexto = '';
+            if (mov.tipo === 'salida') tipoTexto = 'Préstamo Interno (Salida)';
+            else if (mov.tipo === 'garantia') tipoTexto = 'Garantía Externa';
+            else if (mov.tipo === 'prestamo_unidad') tipoTexto = 'Préstamo a unidad';
+            else tipoTexto = 'Retorno';
+            historialCompleto.push({
+                fecha,
+                no: mov.n_extintor,
+                tipo: tipoTexto,
+                personal: mov.personal || '-',
+                detalle: mov.detalle || (mov.tipo === 'salida' ? `Área Destino: ${mov.area_destino || '-'} (Reemplaza al N ${mov.extintor_reemplazado || '-'})` : `Extintor Reemplazo/Garantía entregado: ${mov.reemplazo || '-'}`)
+            });
+            if (!mov.activo) return;
+            if (mov.tipo === 'salida') {
+                outgoingLoans[mov.n_extintor] = { personal: mov.personal, areaDestino: mov.area_destino, extintorReemplazado: mov.extintor_reemplazado, fecha };
+            } else if (mov.tipo === 'garantia') {
+                const esExt = String(mov.detalle || '').toLowerCase().includes('garantía externa');
+                if (esExt) {
+                    externalLoans[mov.n_extintor] = { personal: mov.personal, reemplazo: mov.reemplazo, fecha };
+                } else {
+                    internalLoans[mov.n_extintor] = { personal: mov.personal, reemplazo: mov.reemplazo, esInterno: true, fecha };
+                }
+            }
         });
     }
 
     async function refreshData() {
-        const {data,error}=await supabaseClient.from(TABLA_EXTINTORES).select('*');
-        if(error){ console.error(error); return; }
-        if(data) misDatos=[...data].sort(compararNumeros);
+        const { data, error } = await supabaseClient.from(TABLA_EXTINTORES).select('*');
+        if (error) { console.error(error); return; }
+        if (data) misDatos = [...data].sort(compararNumeros);
     }
 
-    // ===== INICIO =====
+    // ============================================================
+    //  INICIO
+    // ============================================================
     async function iniciarApp() {
-        const {data,error}=await supabaseClient.from(TABLA_EXTINTORES).select('*');
-        if(error){ tableBody.innerHTML=`<tr><td colspan="7" style="text-align:center;color:red;">Error de Supabase: ${error.message}</td></tr>`; return; }
-        if(!data||data.length===0){ tableBody.innerHTML=`<tr><td colspan="7" style="text-align:center;">La tabla de Supabase está vacía o no tiene registros</td></tr>`; return; }
-        misDatos=[...data].sort(compararNumeros);
+        const { data, error } = await supabaseClient.from(TABLA_EXTINTORES).select('*');
+        if (error) {
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Error de Supabase: ${error.message}</td></tr>`;
+            return;
+        }
+        if (!data || data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">La tabla de Supabase está vacía o no tiene registros</td></tr>`;
+            return;
+        }
+        misDatos = [...data].sort(compararNumeros);
         await cargarDatosSecundarios();
-        poblarAreas(); renderCalendar(); renderTable(misDatos);
+        poblarAreas();
+        renderCalendar();
+        renderTable(misDatos);
     }
 
-    // Cerrar modales al hacer clic fuera
-    detailModal.addEventListener('click',(e)=>{ if(e.target===detailModal) closeModal(); });
-    loanModal.addEventListener('click',(e)=>{ if(e.target===loanModal) closeLoanModal(); });
-    unitLoanModal.addEventListener('click',(e)=>{ if(e.target===unitLoanModal) closeUnitLoanModal(); });
-    historyModal.addEventListener('click',(e)=>{ if(e.target===historyModal) closeHistoryModal(); });
-    observationsModal.addEventListener('click',(e)=>{ if(e.target===observationsModal) closeObservationsModal(); });
-    observationFormModal.addEventListener('click',(e)=>{ if(e.target===observationFormModal) closeObservationFormModal(); });
-    editorModal.addEventListener('click',(e)=>{ if(e.target===editorModal) closeEditorModal(); });
+    // Eventos para cerrar modales
+    detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeModal(); });
+    loanModal.addEventListener('click', (e) => { if (e.target === loanModal) closeLoanModal(); });
+    unitLoanModal.addEventListener('click', (e) => { if (e.target === unitLoanModal) closeUnitLoanModal(); });
+    historyModal.addEventListener('click', (e) => { if (e.target === historyModal) closeHistoryModal(); });
+    observationsModal.addEventListener('click', (e) => { if (e.target === observationsModal) closeObservationsModal(); });
+    observationFormModal.addEventListener('click', (e) => { if (e.target === observationFormModal) closeObservationFormModal(); });
+    editorModal.addEventListener('click', (e) => { if (e.target === editorModal) closeEditorModal(); });
 
-    areaFilter.addEventListener('input', applyFilters); areaFilter.addEventListener('change', applyFilters);
+    // Filtros
+    areaFilter.addEventListener('input', applyFilters);
+    areaFilter.addEventListener('change', applyFilters);
     vigenciaFilter.addEventListener('change', applyFilters);
-    if(estadoFilter) estadoFilter.addEventListener('change', applyFilters);
-    if(numeroFilter) numeroFilter.addEventListener('input', applyFilters);
+    if (estadoFilter) estadoFilter.addEventListener('change', applyFilters);
+    if (numeroFilter) numeroFilter.addEventListener('input', applyFilters);
 
     iniciarApp();
 </script>
