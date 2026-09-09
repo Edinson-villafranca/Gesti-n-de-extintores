@@ -1365,11 +1365,8 @@
             }
 
             await showGenericModal('Movimiento eliminado correctamente de la base de datos.', 'Éxito');
-            // Recargar datos secundarios para actualizar todo
             await cargarDatosSecundarios();
-            // Refrescar la tabla del historial
             renderizarHistorial();
-            // Refrescar la tabla principal y filtros
             applyFilters();
         } catch (err) {
             console.error('Error inesperado:', err);
@@ -1468,7 +1465,7 @@
     }
 
     // ============================================================
-    //  MODAL DETALLES
+    //  MODAL DETALLES - CORREGIDO
     // ============================================================
     function showModal(item) {
         const modalBody = document.getElementById('modal-body');
@@ -1534,8 +1531,8 @@
             botonesAccion += `<button class="btn btn-primary" style="background:#059669;color:white;" onclick="abrirFormularioObservacion(${currentItemIndex})"><i class="fas fa-pen"></i> Registrar Observación</button>`;
         }
         const estadoActual = item["ESTADO"] || "";
-        const condicionActual = getCondicionItem(item);
-        const esBaja = (condicionActual === "Baja" || estadoActual === "No Disponible");
+        // CAMBIO: Solo extintores con CONDICION = "Baja" muestran "Registrar nuevo extintor"
+        const esBaja = (item["CONDICION"] === "Baja");
 
         if (isAdmin) {
             if (esBaja) {
@@ -1785,7 +1782,7 @@
         const item = misDatos[currentItemIndex];
         const condicion = getCondicionItem(item);
         const estado = item["ESTADO"] || "";
-        const esBaja = (condicion === "Baja" || estado === "No Disponible");
+        const esBaja = (item["CONDICION"] === "Baja");
 
         if (esBaja) {
             editorModoCreacion = false;
