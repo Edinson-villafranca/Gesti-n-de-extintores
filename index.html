@@ -1102,15 +1102,19 @@
     }
     function getEstadoBadgeClass(estado) { if (estado === 'Prestado') return 'badge-prestado'; if (estado === 'Almacén SST') return 'badge-almacen'; return ''; }
     function limpiar(valor) { return (valor !== undefined && valor !== null && String(valor).trim() !== "") ? valor : "-"; }
-    function getUbicacionActual(item, esAdmin) {
-        const prestamo = item["ubicacion_prestamo"] || "";
-        const estado = item["ESTADO"] || "";
-        if (prestamo.trim() !== "") {
-            if (!esAdmin && estado === "Almacén SST" && prestamo.includes("|")) return prestamo.split("|")[0].trim();
-            return prestamo;
-        }
-        return item["UBICACION"] || "-";
+function getUbicacionActual(item, esAdmin) {
+    // Si tiene ubicacion_prestamo, mostrarla
+    if (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") {
+        return item["ubicacion_prestamo"];
     }
+    // Si no tiene ubicacion_prestamo, mostrar "-"
+    return "-";
+}
+
+function getUbicacionAsignada(item, esAdmin) {
+    // Siempre mostrar UBICACION como ubicación asignada
+    return item["UBICACION"] || "-";
+}
     function getUbicacionAsignada(item, esAdmin) {
         const estado = item["ESTADO"] || "";
         if (!esAdmin && estado === "Prestado") return "-";
@@ -1271,43 +1275,52 @@
     }
 
     function renderTable(data) {
-        tableBody.innerHTML = "";
-        if (data.length === 0) {
-            const cols = isAdmin ? 7 : 6;
-            tableBody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center; padding:24px; color:#94a3b8;">No hay resultados.</td></tr>`;
-            return;
-        }
-        const mostrarEstado = isAdmin;
-        [...data].sort(compararNumeros).forEach((item) => {
-            const condicion = getCondicionItem(item);
-            const estado = getEstadoItem(item);
-            const ubicacionActual = getUbicacionActual(item, isAdmin);
-            const ubicacionAsignada = getUbicacionAsignada(item, isAdmin);
-            const garantiaReemplazo = getGarantiaReemplazo(item);
-
-            const row = document.createElement('tr');
-            row.setAttribute('data-index', misDatos.indexOf(item));
-
-            let html = `
-                <td><strong>${item["N"] || "-"}</strong></td>
-                <td>${item["AREA RESPONSABLE"] || "-"}</td>
-                <td>${ubicacionAsignada}</td>
-                <td>${ubicacionActual}</td>
-                <td><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></td>
-                <td>${garantiaReemplazo}</td>
-            `;
-            if (mostrarEstado) {
-                const estadoMostrar = estado || "";
-                html += `<td>${estadoMostrar ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</td>`;
-            }
-            row.innerHTML = html;
-            row.addEventListener('click', () => {
-                currentItemIndex = parseInt(row.getAttribute('data-index'));
-                showModal(misDatos[currentItemIndex]);
-            });
-            tableBody.appendChild(row);
-        });
+    tableBody.innerHTML = "";
+    if (data.length === 0) {
+        const cols = isAdmin ? 7 : 6;
+        tableBody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center; padding:24px; color:#94a3b8;">No hay resultados.</td></tr>`;
+        return;
     }
+    const mostrarEstado = isAdmin;
+    [...data].sort(compararNumeros).forEach((item) => {
+        const condicion = getCondicionItem(item);
+        const estado = getEstadoItem(item);
+        const no = String(item["N"]);
+        
+        // OBTENER UBICACIONES CORRECTAMENTE
+        // Ubicación asignada: siempre la UBICACION original
+        const ubicacionAsignada = item["UBICACION"] || "-";
+        
+        // Ubicación actual: ubicacion_prestamo si existe, si no "-"
+        const ubicacionActual = (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") 
+            ? item["ubicacion_prestamo"] 
+            : "-";
+        
+        const garantiaReemplazo = getGarantiaReemplazo(item);
+
+        const row = document.createElement('tr');
+        row.setAttribute('data-index', misDatos.indexOf(item));
+
+        let html = `
+            <td><strong>${item["N"] || "-"}</strong></td>
+            <td>${item["AREA RESPONSABLE"] || "-"}</td>
+            <td>${ubicacionAsignada}</td>
+            <td>${ubicacionActual}</td>
+            <td><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></td>
+            <td>${garantiaReemplazo}</td>
+        `;
+        if (mostrarEstado) {
+            const estadoMostrar = estado || "";
+            html += `<td>${estadoMostrar ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</td>`;
+        }
+        row.innerHTML = html;
+        row.addEventListener('click', () => {
+            currentItemIndex = parseInt(row.getAttribute('data-index'));
+            showModal(misDatos[currentItemIndex]);
+        });
+        tableBody.appendChild(row);
+    });
+}
 
     // ============================================================
     //  HISTORIAL Y OBSERVACIONES
@@ -1468,95 +1481,100 @@
     //  MODAL DETALLES - CORREGIDO
     // ============================================================
     function showModal(item) {
-        const modalBody = document.getElementById('modal-body');
-        const modalActions = document.getElementById('modal-actions');
-        const condicion = getCondicionItem(item);
-        const estado = getEstadoItem(item);
-        const no = String(item["N"]);
-        const prestamoActivo = movimientosPrestamoActivos[no];
-        const garantiaActiva = movimientosGarantiaActivos[no];
-        const ubicacionAsignada = getUbicacionAsignada(item, isAdmin);
-        const ubicacionActual = getUbicacionActual(item, isAdmin);
-        const evidencia = item["evidencia"] || "";
-        const evidenciaHTML = evidencia.trim() ? `<div class="modal-row"><label>Evidencia baja:</label><value><a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Ver evidencia</a></value></div>` : "";
+    const modalBody = document.getElementById('modal-body');
+    const modalActions = document.getElementById('modal-actions');
+    const condicion = getCondicionItem(item);
+    const estado = getEstadoItem(item);
+    const no = String(item["N"]);
+    const prestamoActivo = movimientosPrestamoActivos[no];
+    const garantiaActiva = movimientosGarantiaActivos[no];
+    
+    // Ubicación asignada: siempre UBICACION
+    const ubicacionAsignada = item["UBICACION"] || "-";
+    
+    // Ubicación actual: ubicacion_prestamo si existe, si no "-"
+    const ubicacionActual = (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") 
+        ? item["ubicacion_prestamo"] 
+        : "-";
+    
+    const evidencia = item["evidencia"] || "";
+    const evidenciaHTML = evidencia.trim() ? `<div class="modal-row"><label>Evidencia baja:</label><value><a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Ver evidencia</a></value></div>` : "";
 
-        let movimientoHTML = '';
-        if (prestamoActivo) {
-            const tipoTexto = prestamoActivo.tipo === 'prestamo_unidad' ? 'Préstamo a Unidad' : 'Préstamo Interno';
-            movimientoHTML += `
-                <div class="modal-section" style="background:#fefce8;border:1px solid #fef08a;padding:14px;border-radius:12px;margin-top:8px;">
-                    <div class="modal-section-title" style="color:#854d0e;"><i class="fas fa-exchange-alt"></i> Préstamo Activo</div>
-                    <div class="modal-row"><label>Tipo:</label><value><strong>${tipoTexto}</strong></value></div>
-                    ${prestamoActivo.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(prestamoActivo.personal)}</strong></value></div>` : ''}
-                    ${prestamoActivo.motivo ? `<div class="modal-row"><label>Motivo:</label><value><strong>${limpiar(prestamoActivo.motivo)}</strong></value></div>` : ''}
-                    ${prestamoActivo.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(prestamoActivo.reemplazo)}</strong></value></div>` : ''}
-                    ${prestamoActivo.responsable_destino ? `<div class="modal-row"><label>Responsable destino:</label><value><strong>${limpiar(prestamoActivo.responsable_destino)}</strong></value></div>` : ''}
-                    ${prestamoActivo.ubicacion_destino ? `<div class="modal-row"><label>Ubicación destino:</label><value><strong>${limpiar(prestamoActivo.ubicacion_destino)}</strong></value></div>` : ''}
-                    <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(prestamoActivo.fecha)}</value></div>
-                </div>`;
-        }
-        if (garantiaActiva) {
-            movimientoHTML += `
-                <div class="modal-section" style="background:#dbeafe;border:1px solid #93c5fd;padding:14px;border-radius:12px;margin-top:8px;">
-                    <div class="modal-section-title" style="color:#1e40af;"><i class="fas fa-tools"></i> Garantía Activa</div>
-                    ${garantiaActiva.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(garantiaActiva.personal)}</strong></value></div>` : ''}
-                    ${garantiaActiva.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(garantiaActiva.reemplazo)}</strong></value></div>` : ''}
-                    <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(garantiaActiva.fecha)}</value></div>
-                </div>`;
-        }
-
-        modalBody.innerHTML = `
-            <div class="modal-section"><div class="modal-section-title"><i class="fas fa-info-circle"></i> Información General</div>
-                <div class="modal-row"><label>N Extintor:</label><value><strong>${limpiar(item["N"])}</strong></value></div>
-                <div class="modal-row"><label>N Serie Actual:</label><value>${limpiar(item["N SERIE ACTUAL"])}</value></div>
-                <div class="modal-row"><label>Tipo:</label><value>${limpiar(item["TIPO"])}</value></div>
-                <div class="modal-row"><label>Capacidad:</label><value>${limpiar(item["CAP."])}</value></div>
-            </div>
-            <div class="modal-section"><div class="modal-section-title"><i class="fas fa-map-pin"></i> Ubicación</div>
-                <div class="modal-row"><label>Responsable:</label><value>${limpiar(item["AREA RESPONSABLE"])}</value></div>
-                <div class="modal-row"><label>Ubicación asignada:</label><value>${ubicacionAsignada}</value></div>
-                <div class="modal-row"><label>Ubicación actual:</label><value>${ubicacionActual}</value></div>
-            </div>
-            <div class="modal-section"><div class="modal-section-title"><i class="fas fa-tag"></i> Condición y Estado</div>
-                <div class="modal-row"><label>Condición:</label><value><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></value></div>
-                ${isAdmin ? `<div class="modal-row"><label>Estado:</label><value>${estado ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</value></div>` : ''}
-                ${evidenciaHTML}
-                <div class="modal-row"><label>Vencimiento PH:</label><value>${formatMonthYear(item["ph_vencimiento"])}</value></div>
-                <div class="modal-row"><label>Vencimiento recarga:</label><value>${formatMonthYear(item["F. VENC."])}</value></div>
-            </div>
-            ${movimientoHTML}`;
-
-        let botonesAccion = '';
-        if (!isAdmin) {
-            botonesAccion += `<button class="btn btn-primary" style="background:#059669;color:white;" onclick="abrirFormularioObservacion(${currentItemIndex})"><i class="fas fa-pen"></i> Registrar Observación</button>`;
-        }
-        const estadoActual = item["ESTADO"] || "";
-        // CAMBIO: Solo extintores con CONDICION = "Baja" muestran "Registrar nuevo extintor"
-        const esBaja = (item["CONDICION"] === "Baja");
-
-        if (isAdmin) {
-            if (esBaja) {
-                botonesAccion += `<button class="btn btn-success" onclick="abrirNuevoExtintor()"><i class="fas fa-plus"></i> Registrar nuevo extintor</button>`;
-            } else {
-                if (!prestamoActivo) {
-                    botonesAccion += `<button class="btn" style="background:#dc2626;color:white;" onclick="openLoanForm(${currentItemIndex})"><i class="fas fa-handshake"></i> Préstamo</button>`;
-                }
-                if (!garantiaActiva) {
-                    botonesAccion += `<button class="btn btn-garantia" onclick="openLoanFormGarantia(${currentItemIndex})"><i class="fas fa-tools"></i> Extintor de garantía</button>`;
-                }
-                if (prestamoActivo) {
-                    botonesAccion += `<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Préstamo</button>`;
-                }
-                if (garantiaActiva) {
-                    botonesAccion += `<button class="btn btn-success" onclick="finalizarGarantia(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Garantía</button>`;
-                }
-                botonesAccion += `<button class="btn" style="background:#7c3aed;color:white;" onclick="abrirEditor(${currentItemIndex})"><i class="fas fa-edit"></i> Editar registro</button>`;
-            }
-        }
-        botonesAccion += `<button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>`;
-        modalActions.innerHTML = botonesAccion;
-        detailModal.classList.add('active');
+    let movimientoHTML = '';
+    if (prestamoActivo) {
+        const tipoTexto = prestamoActivo.tipo === 'prestamo_unidad' ? 'Préstamo a Unidad' : 'Préstamo Interno';
+        movimientoHTML += `
+            <div class="modal-section" style="background:#fefce8;border:1px solid #fef08a;padding:14px;border-radius:12px;margin-top:8px;">
+                <div class="modal-section-title" style="color:#854d0e;"><i class="fas fa-exchange-alt"></i> Préstamo Activo</div>
+                <div class="modal-row"><label>Tipo:</label><value><strong>${tipoTexto}</strong></value></div>
+                ${prestamoActivo.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(prestamoActivo.personal)}</strong></value></div>` : ''}
+                ${prestamoActivo.motivo ? `<div class="modal-row"><label>Motivo:</label><value><strong>${limpiar(prestamoActivo.motivo)}</strong></value></div>` : ''}
+                ${prestamoActivo.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(prestamoActivo.reemplazo)}</strong></value></div>` : ''}
+                ${prestamoActivo.responsable_destino ? `<div class="modal-row"><label>Responsable destino:</label><value><strong>${limpiar(prestamoActivo.responsable_destino)}</strong></value></div>` : ''}
+                ${prestamoActivo.ubicacion_destino ? `<div class="modal-row"><label>Ubicación destino:</label><value><strong>${limpiar(prestamoActivo.ubicacion_destino)}</strong></value></div>` : ''}
+                <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(prestamoActivo.fecha)}</value></div>
+            </div>`;
     }
+    if (garantiaActiva) {
+        movimientoHTML += `
+            <div class="modal-section" style="background:#dbeafe;border:1px solid #93c5fd;padding:14px;border-radius:12px;margin-top:8px;">
+                <div class="modal-section-title" style="color:#1e40af;"><i class="fas fa-tools"></i> Garantía Activa</div>
+                ${garantiaActiva.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(garantiaActiva.personal)}</strong></value></div>` : ''}
+                ${garantiaActiva.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(garantiaActiva.reemplazo)}</strong></value></div>` : ''}
+                <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(garantiaActiva.fecha)}</value></div>
+            </div>`;
+    }
+
+    modalBody.innerHTML = `
+        <div class="modal-section"><div class="modal-section-title"><i class="fas fa-info-circle"></i> Información General</div>
+            <div class="modal-row"><label>N Extintor:</label><value><strong>${limpiar(item["N"])}</strong></value></div>
+            <div class="modal-row"><label>N Serie Actual:</label><value>${limpiar(item["N SERIE ACTUAL"])}</value></div>
+            <div class="modal-row"><label>Tipo:</label><value>${limpiar(item["TIPO"])}</value></div>
+            <div class="modal-row"><label>Capacidad:</label><value>${limpiar(item["CAP."])}</value></div>
+        </div>
+        <div class="modal-section"><div class="modal-section-title"><i class="fas fa-map-pin"></i> Ubicación</div>
+            <div class="modal-row"><label>Responsable:</label><value>${limpiar(item["AREA RESPONSABLE"])}</value></div>
+            <div class="modal-row"><label>Ubicación asignada:</label><value>${ubicacionAsignada}</value></div>
+            <div class="modal-row"><label>Ubicación actual:</label><value>${ubicacionActual}</value></div>
+        </div>
+        <div class="modal-section"><div class="modal-section-title"><i class="fas fa-tag"></i> Condición y Estado</div>
+            <div class="modal-row"><label>Condición:</label><value><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></value></div>
+            ${isAdmin ? `<div class="modal-row"><label>Estado:</label><value>${estado ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</value></div>` : ''}
+            ${evidenciaHTML}
+            <div class="modal-row"><label>Vencimiento PH:</label><value>${formatMonthYear(item["ph_vencimiento"])}</value></div>
+            <div class="modal-row"><label>Vencimiento recarga:</label><value>${formatMonthYear(item["F. VENC."])}</value></div>
+        </div>
+        ${movimientoHTML}`;
+
+    let botonesAccion = '';
+    if (!isAdmin) {
+        botonesAccion += `<button class="btn btn-primary" style="background:#059669;color:white;" onclick="abrirFormularioObservacion(${currentItemIndex})"><i class="fas fa-pen"></i> Registrar Observación</button>`;
+    }
+    const esBaja = (item["CONDICION"] === "Baja");
+
+    if (isAdmin) {
+        if (esBaja) {
+            botonesAccion += `<button class="btn btn-success" onclick="abrirNuevoExtintor()"><i class="fas fa-plus"></i> Registrar nuevo extintor</button>`;
+        } else {
+            if (!prestamoActivo) {
+                botonesAccion += `<button class="btn" style="background:#dc2626;color:white;" onclick="openLoanForm(${currentItemIndex})"><i class="fas fa-handshake"></i> Préstamo</button>`;
+            }
+            if (!garantiaActiva) {
+                botonesAccion += `<button class="btn btn-garantia" onclick="openLoanFormGarantia(${currentItemIndex})"><i class="fas fa-tools"></i> Extintor de garantía</button>`;
+            }
+            if (prestamoActivo) {
+                botonesAccion += `<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Préstamo</button>`;
+            }
+            if (garantiaActiva) {
+                botonesAccion += `<button class="btn btn-success" onclick="finalizarGarantia(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Garantía</button>`;
+            }
+            botonesAccion += `<button class="btn" style="background:#7c3aed;color:white;" onclick="abrirEditor(${currentItemIndex})"><i class="fas fa-edit"></i> Editar registro</button>`;
+        }
+    }
+    botonesAccion += `<button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>`;
+    modalActions.innerHTML = botonesAccion;
+    detailModal.classList.add('active');
+}
     function closeModal() { detailModal.classList.remove('active'); }
 
     // ============================================================
@@ -1707,7 +1725,7 @@
     }
 
     // ============================================================
-    //  FINALIZAR GARANTÍA Y PRÉSTAMO
+    //  FINALIZAR GARANTÍA Y PRÉSTAMO - CORREGIDO
     // ============================================================
     async function finalizarGarantia(itemIndex) {
         const item = misDatos[itemIndex];
@@ -1732,50 +1750,105 @@
     }
 
     async function finalizarPrestamo(itemIndex) {
-        const item = misDatos[itemIndex];
-        const no = String(item["N"]);
-        const prestamo = movimientosPrestamoActivos[no];
-        if (!prestamo) { await showGenericModal('Este extintor no tiene un préstamo activo.', 'Aviso'); return; }
-        let noRelacionado = prestamo.reemplazo || null;
-        const numerosAFinalizar = [no];
-        if (noRelacionado) numerosAFinalizar.push(noRelacionado);
+    const item = misDatos[itemIndex];
+    const no = String(item["N"]);
+    const prestamo = movimientosPrestamoActivos[no];
+    if (!prestamo) { 
+        await showGenericModal('Este extintor no tiene un préstamo activo.', 'Aviso'); 
+        return; 
+    }
+    
+    let noRelacionado = prestamo.reemplazo || null;
+    const numerosAFinalizar = [no];
+    if (noRelacionado) numerosAFinalizar.push(noRelacionado);
 
-        for (const num of numerosAFinalizar) {
-            const { error } = await supabaseClient.from(TABLA_MOVIMIENTOS)
-                .update({ activo: false })
-                .eq('n_extintor', num)
-                .in('tipo', ['prestamo_interno', 'prestamo_unidad'])
-                .eq('activo', true);
-            if (error) console.error(`Error desactivando préstamo para ${num}:`, error);
+    console.log('Finalizando préstamo para:', numerosAFinalizar);
+
+    // PASO 1: Limpiar ubicacion_prestamo y ESTADO para TODOS los extintores
+    for (const num of numerosAFinalizar) {
+        // Desactivar movimientos activos
+        const { error: movError } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .update({ activo: false })
+            .eq('n_extintor', num)
+            .in('tipo', ['prestamo_interno', 'prestamo_unidad'])
+            .eq('activo', true);
+        if (movError) console.error(`Error desactivando préstamo para ${num}:`, movError);
+
+        // LIMPIAR ubicacion_prestamo y ESTADO
+        // NO tocamos UBICACION - se mantiene como estaba originalmente
+        const { error: updateError } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .update({
+                ubicacion_prestamo: null,
+                ESTADO: null
+            })
+            .eq('N', num);
+            
+        if (updateError) {
+            console.error(`Error actualizando extintor ${num}:`, updateError);
+            await showGenericModal(`Error al restaurar el extintor ${num}: ${updateError.message}`, 'Error');
+            return;
         }
+        
+        console.log(`Extintor ${num} restaurado correctamente`);
+    }
 
-        for (const num of numerosAFinalizar) {
-            const update = await supabaseClient.from(TABLA_EXTINTORES)
-                .update({ ubicacion_prestamo: null, ESTADO: null })
-                .eq('N', num);
-            if (update.error) console.error(`Error actualizando extintor ${num}:`, update.error);
-        }
-
-        const retorno = await supabaseClient.from(TABLA_MOVIMIENTOS).insert({
+    // PASO 2: Registrar movimiento de retorno
+    const retorno = await supabaseClient
+        .from(TABLA_MOVIMIENTOS)
+        .insert({
             n_extintor: no,
             tipo: 'retorno',
             personal: 'Sistema',
-            detalle: 'Préstamo finalizado',
+            detalle: `Préstamo finalizado${noRelacionado ? ` - Extintor ${noRelacionado} restaurado` : ''}`,
             activo: false
         });
-        if (retorno.error) console.error('Error registrando retorno:', retorno.error);
+    if (retorno.error) console.error('Error registrando retorno:', retorno.error);
 
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: no, tipo: 'Retorno', personal: 'Sistema', detalle: 'Préstamo finalizado' });
-        await showGenericModal('Préstamo finalizado correctamente.', 'Éxito');
-        closeModal();
-        await refreshData();
-        await cargarDatosSecundarios();
-        applyFilters();
-    }
+    // PASO 3: Actualizar historial local
+    historialCompleto.push({
+        fecha: new Date().toLocaleString('es-ES'),
+        no: no,
+        tipo: 'Retorno',
+        personal: 'Sistema',
+        detalle: `Préstamo finalizado${noRelacionado ? ` - Extintor ${noRelacionado} restaurado` : ''}`
+    });
+
+    await showGenericModal(
+        `Préstamo finalizado correctamente. Los extintores han sido restaurados.`,
+        'Éxito'
+    );
+    
+    closeModal();
+    await refreshData();
+    await cargarDatosSecundarios();
+    applyFilters();
+}
 
     // ============================================================
     //  EDITOR, BAJA, NUEVO REEMPLAZO
     // ============================================================
+    // Nombres de campos para mostrar en el editor
+    const nombresMostrar = {
+        'N': 'Número de Extintor',
+        'N SERIE ACTUAL': 'Número de Serie Actual',
+        'TIPO': 'Tipo de Extintor',
+        'CAP.': 'Capacidad',
+        'costo_recarga': 'Costo de Recarga',
+        'zona': 'Zona',
+        'gerencia': 'Gerencia',
+        'AREA RESPONSABLE': 'Área Responsable',
+        'UBICACION': 'Ubicación Asignada',
+        'ph_vencimiento': 'Vencimiento PH',
+        'F. VENC.': 'Vencimiento de Recarga',
+        'fecha_fabricacion': 'Fecha de Fabricación',
+        'proveedor': 'Proveedor',
+        'anterior_ubicacion': 'Anterior Ubicación',
+        'vigencia_actual': 'Vigencia Actual',
+        'ubicacion_prestamo': 'Ubicación Actual'
+    };
+
     function abrirEditor(itemIndex) {
         if (!isAdmin) return;
         currentItemIndex = itemIndex;
@@ -1795,7 +1868,7 @@
                 const campo = document.createElement('div');
                 campo.className = 'editor-field';
                 const label = document.createElement('label');
-                label.textContent = clave;
+                label.textContent = nombresMostrar[clave] || clave;
                 const input = String(item[clave] ?? '').length > 70 ? document.createElement('textarea') : document.createElement('input');
                 input.value = String(item[clave] ?? '');
                 input.dataset.key = clave;
@@ -1830,7 +1903,7 @@
             const campo = document.createElement('div');
             campo.className = 'editor-field';
             const label = document.createElement('label');
-            label.textContent = clave;
+            label.textContent = nombresMostrar[clave] || clave;
             const input = String(item[clave] ?? '').length > 70 ? document.createElement('textarea') : document.createElement('input');
             input.value = String(item[clave] ?? '');
             input.dataset.key = clave;
@@ -1893,12 +1966,28 @@
         document.getElementById('editor-subtitle').textContent = 'Complete todos los campos para crear un nuevo extintor.';
         const editorBody = document.getElementById('editor-body');
         editorBody.innerHTML = '';
-        const campos = ['N', 'N SERIE ACTUAL', 'TIPO', 'CAP.', 'costo_recarga', 'zona', 'gerencia', 'AREA RESPONSABLE', 'UBICACION', 'ph_vencimiento', 'F. VENC.', 'fecha_fabricacion', 'proveedor', 'anterior_ubicacion', 'vigencia_actual'];
+        const campos = [
+            'N', 
+            'N SERIE ACTUAL', 
+            'TIPO', 
+            'CAP.', 
+            'costo_recarga', 
+            'zona', 
+            'gerencia', 
+            'AREA RESPONSABLE', 
+            'UBICACION', 
+            'ph_vencimiento', 
+            'F. VENC.', 
+            'fecha_fabricacion', 
+            'proveedor', 
+            'anterior_ubicacion', 
+            'vigencia_actual'
+        ];
         campos.forEach(clave => {
             const campo = document.createElement('div');
             campo.className = 'editor-field';
             const label = document.createElement('label');
-            label.textContent = clave;
+            label.textContent = nombresMostrar[clave] || clave;
             const input = document.createElement('input');
             input.type = 'text';
             input.value = '';
@@ -2015,7 +2104,7 @@
             const campo = document.createElement('div');
             campo.className = 'editor-field';
             const label = document.createElement('label');
-            label.textContent = clave;
+            label.textContent = nombresMostrar[clave] || clave;
             const input = document.createElement('input');
             input.type = 'text';
             input.value = valoresDefault[clave] || '';
