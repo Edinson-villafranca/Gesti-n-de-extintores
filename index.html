@@ -1041,7 +1041,82 @@
         actualizarMenuAdmin();
         if (garantiaHeader) garantiaHeader.style.display = 'table-cell';
     }
+async function cargarMovimientosActivos() {
+    try {
+        const { data, error } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .select('*')
+            .eq('activo', true)
+            .in('tipo', ['prestamo_interno', 'prestamo_unidad', 'garantia']);
+        
+        if (error) {
+            console.error('Error cargando movimientos activos:', error);
+            return;
+        }
+        
+        // Limpiar objetos de movimientos activos
+        movimientosPrestamoActivos = {};
+        movimientosGarantiaActivos = {};
+        movimientosActivos = {};
+        
+        // Procesar cada movimiento activo
+        data.forEach(mov => {
+            const fecha = new Date(mov.created_at).toLocaleString('es-ES');
+            
+            if (mov.tipo === 'prestamo_interno' || mov.tipo === 'prestamo_unidad') {
+                movimientosPrestamoActivos[mov.n_extintor] = {
+                    tipo: mov.tipo,
+                    personal: mov.personal,
+                    motivo: mov.motivo,
+                    reemplazo: mov.reemplazo,
+                    responsable_destino: mov.responsable_destino,
+                    ubicacion_destino: mov.ubicacion_destino,
+                    fecha: fecha
+                };
+                movimientosActivos[mov.n_extintor] = movimientosPrestamoActivos[mov.n_extintor];
+            } else if (mov.tipo === 'garantia') {
+                movimientosGarantiaActivos[mov.n_extintor] = {
+                    reemplazo: mov.reemplazo,
+                    personal: mov.personal,
+                    fecha: fecha
+                };
+                movimientosActivos[mov.n_extintor] = movimientosGarantiaActivos[mov.n_extintor];
+            }
+        });
+        
+    } catch (err) {
+        console.error('Error inesperado:', err);
+    }
+}
 
+async function actualizarUnExtintor(numero) {
+    try {
+        const { data, error } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .select('*')
+            .eq('N', numero)
+            .single();
+        
+        if (error) {
+            console.error('Error actualizando extintor:', error);
+            return null;
+        }
+        
+        // Buscar el extintor en misDatos y reemplazarlo
+        const idx = misDatos.findIndex(item => String(item["N"]) === String(numero));
+        if (idx !== -1) {
+            misDatos[idx] = data;
+        } else {
+            // Si no existe, agregarlo
+            misDatos.push(data);
+        }
+        
+        return data;
+    } catch (err) {
+        console.error('Error inesperado:', err);
+        return null;
+    }
+}
     async function activarAdmin() {
         if (isAdmin) {
             sessionStorage.removeItem('extintor_admin');
@@ -1351,41 +1426,90 @@ function getUbicacionAsignada(item, esAdmin) {
         });
     }
 
-    async function eliminarMovimiento(index) {
-        const mov = historialCompleto[index];
-        if (!mov || !mov.id) {
-            await showGenericModal('No se puede eliminar este movimiento (falta ID).', 'Error');
+async function eliminarMovimiento(index) {
+    const mov = historialCompleto[index];
+    if (!mov || !mov.id) {
+        await showGenericModal('No se puede eliminar este movimiento (falta ID).', 'Error');
+        return;
+    }
+    
+    const confirmar = await showGenericModal(
+        `¿Desea eliminar el movimiento del extintor ${mov.no} (${mov.tipo}) del ${mov.fecha}?`,
+        'Confirmar eliminación',
+        'Eliminar',
+        'Cancelar'
+    );
+    
+    if (!confirmar) return;
+
+    try {
+        // 1. Eliminar de la base de datos
+        const { error } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .delete()
+            .eq('id', mov.id);
+
+        if (error) {
+            console.error('Error eliminando movimiento:', error);
+            await showGenericModal('Error al eliminar el movimiento: ' + error.message, 'Error');
             return;
         }
-        const confirmar = await showGenericModal(
-            `¿Desea eliminar el movimiento del extintor ${mov.no} (${mov.tipo}) del ${mov.fecha}?`,
-            'Confirmar eliminación',
-            'Eliminar',
-            'Cancelar'
-        );
-        if (!confirmar) return;
 
-        try {
-            const { error } = await supabaseClient
-                .from(TABLA_MOVIMIENTOS)
-                .delete()
-                .eq('id', mov.id);
+        // 2. ELIMINAR LOCALMENTE del historial (sin recargar todo)
+        historialCompleto.splice(index, 1);
 
-            if (error) {
-                console.error('Error eliminando movimiento:', error);
-                await showGenericModal('Error al eliminar el movimiento: ' + error.message + ' (Código: ' + error.code + ')', 'Error');
-                return;
+        // 3. Verificar si este movimiento estaba ACTIVO y actualizar movimientos activos
+        // Buscar si hay otro movimiento activo para este extintor
+        const { data: movimientosActivosDB } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .select('*')
+            .eq('n_extintor', mov.no)
+            .eq('activo', true)
+            .in('tipo', ['prestamo_interno', 'prestamo_unidad', 'garantia']);
+
+        if (movimientosActivosDB && movimientosActivosDB.length > 0) {
+            // Si hay movimientos activos, actualizar los objetos de movimientos activos
+            await cargarMovimientosActivos();
+        } else {
+            // Si no hay movimientos activos, eliminar de los objetos locales
+            delete movimientosPrestamoActivos[mov.no];
+            delete movimientosGarantiaActivos[mov.no];
+            delete movimientosActivos[mov.no];
+            
+            // También limpiar ubicacion_prestamo y ESTADO del extintor si estaba activo
+            const { data: extintor } = await supabaseClient
+                .from(TABLA_EXTINTORES)
+                .select('*')
+                .eq('N', mov.no)
+                .single();
+            
+            if (extintor && (extintor.ubicacion_prestamo || extintor.ESTADO === 'Prestado' || extintor.ESTADO === 'Almacén SST')) {
+                await supabaseClient
+                    .from(TABLA_EXTINTORES)
+                    .update({
+                        ubicacion_prestamo: null,
+                        ESTADO: null
+                    })
+                    .eq('N', mov.no);
+                
+                // Actualizar localmente el extintor
+                await actualizarUnExtintor(mov.no);
             }
-
-            await showGenericModal('Movimiento eliminado correctamente de la base de datos.', 'Éxito');
-            await cargarDatosSecundarios();
-            renderizarHistorial();
-            applyFilters();
-        } catch (err) {
-            console.error('Error inesperado:', err);
-            await showGenericModal('Error inesperado: ' + err.message, 'Error');
         }
+
+        // 4. Actualizar la tabla de movimientos (sin recargar todo)
+        renderizarHistorial();
+        
+        // 5. Refrescar la tabla principal
+        applyFilters();
+
+        await showGenericModal('Movimiento eliminado correctamente.', 'Éxito');
+
+    } catch (err) {
+        console.error('Error inesperado:', err);
+        await showGenericModal('Error inesperado: ' + err.message, 'Error');
     }
+}
 
     function verObservacionesGenerales() {
         renderizarListaObservacionesGenerales();
@@ -1432,15 +1556,44 @@ function getUbicacionAsignada(item, esAdmin) {
         renderizarListaObservacionesGenerales();
     }
 
-    async function eliminarObservacion(index) {
-        if (await showGenericModal('¿Desea eliminar esta observación?', 'Confirmar', 'Sí', 'No')) {
-            const o = observacionesPublicas[index];
-            const { error } = await supabaseClient.from(TABLA_OBSERVACIONES).delete().eq('id', o.id);
-            if (error) { console.error(error); await showGenericModal('No se pudo eliminar: ' + error.message, 'Error'); return; }
-            observacionesPublicas.splice(index, 1);
-            renderizarListaObservacionesGenerales();
+async function eliminarObservacion(index) {
+    const o = observacionesPublicas[index];
+    
+    const confirmar = await showGenericModal(
+        '¿Desea eliminar esta observación?', 
+        'Confirmar', 
+        'Sí', 
+        'No'
+    );
+    
+    if (!confirmar) return;
+    
+    try {
+        // 1. Eliminar de la base de datos
+        const { error } = await supabaseClient
+            .from(TABLA_OBSERVACIONES)
+            .delete()
+            .eq('id', o.id);
+        
+        if (error) {
+            console.error(error);
+            await showGenericModal('No se pudo eliminar: ' + error.message, 'Error');
+            return;
         }
+        
+        // 2. ELIMINAR LOCALMENTE (sin recargar todo)
+        observacionesPublicas.splice(index, 1);
+        
+        // 3. Refrescar la lista de observaciones
+        renderizarListaObservacionesGenerales();
+        
+        await showGenericModal('Observación eliminada correctamente.', 'Éxito');
+        
+    } catch (err) {
+        console.error('Error inesperado:', err);
+        await showGenericModal('Error inesperado: ' + err.message, 'Error');
     }
+}
     function closeHistoryModal() { historyModal.classList.remove('active'); }
     function closeObservationsModal() { observationsModal.classList.remove('active'); }
 
@@ -1652,36 +1805,103 @@ function getUbicacionAsignada(item, esAdmin) {
         else if (tipo === 'unidad') await guardarPrestamoUnidad();
     }
 
-    async function guardarPrestamoInterno() {
-        const personal = document.getElementById('personal-cambio').value.trim();
-        const reemplazo = document.getElementById('extintor-reemplazo').value.trim();
-        const motivo = document.getElementById('motivo-select').value;
-        if (!personal || !reemplazo) { await showGenericModal('Por favor complete todos los campos.', 'Aviso'); return; }
-        const itemA = misDatos[currentItemIndex];
-        const noA = String(itemA["N"]);
-        if (isItemExpired(itemA)) { await showGenericModal('Este extintor está vencido, no se puede registrar un préstamo interno.', 'Error'); return; }
-        const estadoActual = itemA["ESTADO"] || "";
-        if (estadoActual === "Prestado" || estadoActual === "Almacén SST") { await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error'); return; }
-        const { data: itemBData, error: searchError } = await supabaseClient.from(TABLA_EXTINTORES).select('*').eq('N', reemplazo).single();
-        if (searchError || !itemBData) { await showGenericModal('No se encontró el extintor de reemplazo en el inventario.', 'Error'); return; }
-        const noB = String(itemBData["N"]);
-        const responsableOriginalA = itemA["AREA RESPONSABLE"] || "Sin responsable";
-        const updateA = await supabaseClient.from(TABLA_EXTINTORES).update({ ubicacion_prestamo: 'Mantenimiento / Almacén SST', CONDICION: motivo, ESTADO: 'Almacén SST' }).eq('N', noA);
-        if (updateA.error) { console.error('Error actualizando extintor A:', updateA.error); await showGenericModal('Error al actualizar el extintor reportado: ' + updateA.error.message, 'Error'); return; }
-        const updateB = await supabaseClient.from(TABLA_EXTINTORES).update({ ubicacion_prestamo: `Préstamo a: ${responsableOriginalA} | Reemplaza al N ${noA}`, ESTADO: 'Prestado' }).eq('N', noB);
-        if (updateB.error) { console.error('Error actualizando extintor B:', updateB.error); await showGenericModal('Error al actualizar el extintor de reemplazo: ' + updateB.error.message, 'Error'); return; }
-        const mov1 = await supabaseClient.from(TABLA_MOVIMIENTOS).insert({ n_extintor: noA, tipo: 'prestamo_interno', personal: personal, motivo: motivo, reemplazo: noB, responsable_destino: "SST", ubicacion_destino: 'Mantenimiento / Almacén SST', detalle: `Extintor ${noA} reportado como ${motivo} - enviado a almacén. Reemplazado por ${noB}`, activo: true });
-        if (mov1.error) { console.error('Error registrando movimiento 1:', mov1.error); await showGenericModal('Error al registrar el movimiento: ' + mov1.error.message, 'Error'); return; }
-        const mov2 = await supabaseClient.from(TABLA_MOVIMIENTOS).insert({ n_extintor: noB, tipo: 'prestamo_interno', personal: personal, motivo: motivo, reemplazo: noA, responsable_destino: responsableOriginalA, ubicacion_destino: `Préstamo a: ${responsableOriginalA} | Reemplaza al N ${noA}`, detalle: `Extintor ${noB} (STOCK) enviado a ${responsableOriginalA} - Reemplaza a ${noA}`, activo: true });
-        if (mov2.error) { console.error('Error registrando movimiento 2:', mov2.error); await showGenericModal('Error al registrar el movimiento de reemplazo: ' + mov2.error.message, 'Error'); return; }
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: noA, tipo: 'Préstamo Interno (Salida)', personal: personal, detalle: `Extintor ${noA} reportado como ${motivo} - Reemplazado por ${noB}` });
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: noB, tipo: 'Préstamo Interno (Entrada)', personal: personal, detalle: `Extintor ${noB} (STOCK) enviado a ${responsableOriginalA} - Reemplaza a ${noA}` });
-        await showGenericModal('Préstamo interno registrado exitosamente.', 'Éxito');
-        closeLoanModal();
-        await refreshData();
-        await cargarDatosSecundarios();
-        applyFilters();
+async function guardarPrestamoInterno() {
+    const personal = document.getElementById('personal-cambio').value.trim();
+    const reemplazo = document.getElementById('extintor-reemplazo').value.trim();
+    const motivo = document.getElementById('motivo-select').value;
+    
+    if (!personal || !reemplazo) { 
+        await showGenericModal('Por favor complete todos los campos.', 'Aviso'); 
+        return; 
     }
+    
+    const itemA = misDatos[currentItemIndex];
+    const noA = String(itemA["N"]);
+    
+    if (isItemExpired(itemA)) { 
+        await showGenericModal('Este extintor está vencido, no se puede registrar un préstamo interno.', 'Error'); 
+        return; 
+    }
+    
+    const estadoActual = itemA["ESTADO"] || "";
+    if (estadoActual === "Prestado" || estadoActual === "Almacén SST") { 
+        await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error'); 
+        return; 
+    }
+    
+    // Buscar el extintor de reemplazo
+    const { data: itemBData, error: searchError } = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .select('*')
+        .eq('N', reemplazo)
+        .single();
+    
+    if (searchError || !itemBData) { 
+        await showGenericModal('No se encontró el extintor de reemplazo en el inventario.', 'Error'); 
+        return; 
+    }
+    
+    const noB = String(itemBData["N"]);
+    const responsableOriginalA = itemA["AREA RESPONSABLE"] || "Sin responsable";
+    
+    // Actualizar en la base de datos
+    await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update({ 
+            ubicacion_prestamo: 'Mantenimiento / Almacén SST', 
+            CONDICION: motivo, 
+            ESTADO: 'Almacén SST' 
+        })
+        .eq('N', noA);
+    
+    await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update({ 
+            ubicacion_prestamo: `Préstamo a: ${responsableOriginalA} | Reemplaza al N ${noA}`, 
+            ESTADO: 'Prestado' 
+        })
+        .eq('N', noB);
+    
+    // Registrar movimientos
+    await supabaseClient.from(TABLA_MOVIMIENTOS).insert([
+        { 
+            n_extintor: noA, 
+            tipo: 'prestamo_interno', 
+            personal: personal, 
+            motivo: motivo, 
+            reemplazo: noB, 
+            responsable_destino: "SST", 
+            ubicacion_destino: 'Mantenimiento / Almacén SST', 
+            detalle: `Extintor ${noA} reportado como ${motivo} - enviado a almacén. Reemplazado por ${noB}`, 
+            activo: true 
+        },
+        { 
+            n_extintor: noB, 
+            tipo: 'prestamo_interno', 
+            personal: personal, 
+            motivo: motivo, 
+            reemplazo: noA, 
+            responsable_destino: responsableOriginalA, 
+            ubicacion_destino: `Préstamo a: ${responsableOriginalA} | Reemplaza al N ${noA}`, 
+            detalle: `Extintor ${noB} (STOCK) enviado a ${responsableOriginalA} - Reemplaza a ${noA}`, 
+            activo: true 
+        }
+    ]);
+    
+    // ACTUALIZAR LOCALMENTE (sin recargar todo)
+    await actualizarUnExtintor(noA);
+    await actualizarUnExtintor(noB);
+    await cargarMovimientosActivos(); // Recargar solo movimientos activos
+    
+    historialCompleto.push(
+        { fecha: new Date().toLocaleString('es-ES'), no: noA, tipo: 'Préstamo Interno (Salida)', personal: personal, detalle: `Extintor ${noA} reportado como ${motivo} - Reemplazado por ${noB}` },
+        { fecha: new Date().toLocaleString('es-ES'), no: noB, tipo: 'Préstamo Interno (Entrada)', personal: personal, detalle: `Extintor ${noB} (STOCK) enviado a ${responsableOriginalA} - Reemplaza a ${noA}` }
+    );
+    
+    await showGenericModal('Préstamo interno registrado exitosamente.', 'Éxito');
+    closeLoanModal();
+    applyFilters();
+}
 
     async function guardarPrestamoGarantia() {
         const personal = document.getElementById('garantia-personal').value.trim();
@@ -1727,32 +1947,71 @@ function getUbicacionAsignada(item, esAdmin) {
     // ============================================================
     //  FINALIZAR GARANTÍA Y PRÉSTAMO - CORREGIDO
     // ============================================================
-    async function finalizarGarantia(itemIndex) {
-        const item = misDatos[itemIndex];
-        const no = String(item["N"]);
-        if (!movimientosGarantiaActivos[no]) { await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso'); return; }
-        const now = new Date();
-        const nuevoAnio = now.getFullYear() + 1;
-        const nuevoMes = now.getMonth() + 1;
-        let mesFinal = nuevoMes, anioFinal = nuevoAnio;
-        if (mesFinal > 12) { mesFinal = mesFinal - 12; anioFinal = anioFinal + 1; }
-        const nuevaFecha = `${String(mesFinal).padStart(2, '0')}/${anioFinal}`;
-        const updateExtintor = await supabaseClient.from(TABLA_EXTINTORES).update({ "F. VENC.": nuevaFecha, "ph_vencimiento": nuevaFecha }).eq('N', no);
-        if (updateExtintor.error) { console.error('Error actualizando fechas del extintor:', updateExtintor.error); await showGenericModal('Error al actualizar las fechas: ' + updateExtintor.error.message, 'Error'); return; }
-        const { error } = await supabaseClient.from(TABLA_MOVIMIENTOS).update({ activo: false }).eq('n_extintor', no).eq('tipo', 'garantia').eq('activo', true);
-        if (error) { console.error(error); await showGenericModal('Error al finalizar la garantía: ' + error.message, 'Error'); return; }
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: no, tipo: 'Garantía finalizada', personal: 'Sistema', detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}` });
-        await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha} (1 año y 1 mes desde hoy)`, 'Éxito');
-        closeModal();
-        await refreshData();
-        await cargarDatosSecundarios();
-        applyFilters();
+   async function finalizarGarantia(itemIndex) {
+    const item = misDatos[itemIndex];
+    const no = String(item["N"]);
+    
+    if (!movimientosGarantiaActivos[no]) { 
+        await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso'); 
+        return; 
     }
+    
+    // Calcular nueva fecha
+    const now = new Date();
+    const nuevoAnio = now.getFullYear() + 1;
+    const nuevoMes = now.getMonth() + 1;
+    let mesFinal = nuevoMes, anioFinal = nuevoAnio;
+    if (mesFinal > 12) { mesFinal = mesFinal - 12; anioFinal = anioFinal + 1; }
+    const nuevaFecha = `${String(mesFinal).padStart(2, '0')}/${anioFinal}`;
+    
+    // Actualizar en la base de datos
+    const updateExtintor = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update({ "F. VENC.": nuevaFecha, "ph_vencimiento": nuevaFecha })
+        .eq('N', no);
+    
+    if (updateExtintor.error) {
+        console.error('Error actualizando fechas:', updateExtintor.error);
+        await showGenericModal('Error al actualizar las fechas: ' + updateExtintor.error.message, 'Error');
+        return;
+    }
+    
+    const { error } = await supabaseClient
+        .from(TABLA_MOVIMIENTOS)
+        .update({ activo: false })
+        .eq('n_extintor', no)
+        .eq('tipo', 'garantia')
+        .eq('activo', true);
+    
+    if (error) {
+        console.error(error);
+        await showGenericModal('Error al finalizar la garantía: ' + error.message, 'Error');
+        return;
+    }
+    
+    // ACTUALIZAR LOCALMENTE (sin recargar todo)
+    await actualizarUnExtintor(no);
+    delete movimientosGarantiaActivos[no];
+    delete movimientosActivos[no];
+    
+    historialCompleto.push({
+        fecha: new Date().toLocaleString('es-ES'),
+        no: no,
+        tipo: 'Garantía finalizada',
+        personal: 'Sistema',
+        detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}`
+    });
+    
+    await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha}`, 'Éxito');
+    closeModal();
+    applyFilters();
+}
 
-    async function finalizarPrestamo(itemIndex) {
+ async function finalizarPrestamo(itemIndex) {
     const item = misDatos[itemIndex];
     const no = String(item["N"]);
     const prestamo = movimientosPrestamoActivos[no];
+    
     if (!prestamo) { 
         await showGenericModal('Este extintor no tiene un préstamo activo.', 'Aviso'); 
         return; 
@@ -1762,11 +2021,9 @@ function getUbicacionAsignada(item, esAdmin) {
     const numerosAFinalizar = [no];
     if (noRelacionado) numerosAFinalizar.push(noRelacionado);
 
-    console.log('Finalizando préstamo para:', numerosAFinalizar);
-
-    // PASO 1: Limpiar ubicacion_prestamo y ESTADO para TODOS los extintores
+    // PASO 1: Limpiar en la base de datos
     for (const num of numerosAFinalizar) {
-        // Desactivar movimientos activos
+        // Desactivar movimientos
         const { error: movError } = await supabaseClient
             .from(TABLA_MOVIMIENTOS)
             .update({ activo: false })
@@ -1775,8 +2032,7 @@ function getUbicacionAsignada(item, esAdmin) {
             .eq('activo', true);
         if (movError) console.error(`Error desactivando préstamo para ${num}:`, movError);
 
-        // LIMPIAR ubicacion_prestamo y ESTADO
-        // NO tocamos UBICACION - se mantiene como estaba originalmente
+        // Limpiar ubicacion_prestamo y ESTADO
         const { error: updateError } = await supabaseClient
             .from(TABLA_EXTINTORES)
             .update({
@@ -1784,45 +2040,33 @@ function getUbicacionAsignada(item, esAdmin) {
                 ESTADO: null
             })
             .eq('N', num);
-            
-        if (updateError) {
-            console.error(`Error actualizando extintor ${num}:`, updateError);
-            await showGenericModal(`Error al restaurar el extintor ${num}: ${updateError.message}`, 'Error');
-            return;
-        }
-        
-        console.log(`Extintor ${num} restaurado correctamente`);
+        if (updateError) console.error(`Error actualizando extintor ${num}:`, updateError);
     }
 
-    // PASO 2: Registrar movimiento de retorno
-    const retorno = await supabaseClient
-        .from(TABLA_MOVIMIENTOS)
-        .insert({
-            n_extintor: no,
-            tipo: 'retorno',
-            personal: 'Sistema',
-            detalle: `Préstamo finalizado${noRelacionado ? ` - Extintor ${noRelacionado} restaurado` : ''}`,
-            activo: false
-        });
-    if (retorno.error) console.error('Error registrando retorno:', retorno.error);
+    // PASO 2: ACTUALIZAR LOCALMENTE CADA EXTINTOR (sin recargar todo)
+    for (const num of numerosAFinalizar) {
+        await actualizarUnExtintor(num); // Solo actualiza este extintor
+    }
 
-    // PASO 3: Actualizar historial local
+    // PASO 3: ACTUALIZAR MOVIMIENTOS ACTIVOS LOCALMENTE
+    for (const num of numerosAFinalizar) {
+        delete movimientosPrestamoActivos[num];
+        delete movimientosActivos[num];
+    }
+
+    // PASO 4: Registrar retorno en el historial (solo en memoria)
     historialCompleto.push({
         fecha: new Date().toLocaleString('es-ES'),
         no: no,
         tipo: 'Retorno',
         personal: 'Sistema',
-        detalle: `Préstamo finalizado${noRelacionado ? ` - Extintor ${noRelacionado} restaurado` : ''}`
+        detalle: `Préstamo finalizado${noRelacionado ? ` - Extintor ${noRelacionado}` : ''}`
     });
 
-    await showGenericModal(
-        `Préstamo finalizado correctamente. Los extintores han sido restaurados.`,
-        'Éxito'
-    );
-    
+    await showGenericModal('Préstamo finalizado correctamente.', 'Éxito');
     closeModal();
-    await refreshData();
-    await cargarDatosSecundarios();
+    
+    // PASO 5: Refrescar la tabla (sin recargar datos)
     applyFilters();
 }
 
@@ -1933,30 +2177,58 @@ function getUbicacionAsignada(item, esAdmin) {
         document.getElementById('editor-evidencia-container').innerHTML = '';
     }
 
-    async function guardarEdicion() {
-        if (!isAdmin || currentItemIndex === null || editorModoCreacion) return;
-        const item = misDatos[currentItemIndex];
-        const cambios = {};
-        document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
-            const clave = campo.dataset.key;
-            if (clave) cambios[clave] = campo.value;
-        });
-        const numeroAnterior = String(item['N']);
-        const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
-        if (!numeroNuevo) { await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso'); return; }
-        const { error } = await supabaseClient.from(TABLA_EXTINTORES).update(cambios).eq('N', numeroAnterior);
-        if (error) { console.error(error); await showGenericModal('No se pudieron guardar los cambios: ' + error.message, 'Error'); return; }
-        if (numeroNuevo !== numeroAnterior) {
-            await supabaseClient.from(TABLA_MOVIMIENTOS).update({ n_extintor: numeroNuevo }).eq('n_extintor', numeroAnterior);
-            await supabaseClient.from(TABLA_OBSERVACIONES).update({ n_extintor: numeroNuevo }).eq('n_extintor', numeroAnterior);
-        }
-        await showGenericModal('Registro actualizado correctamente.', 'Éxito');
-        closeEditorModal();
-        await refreshData();
-        await cargarDatosSecundarios();
-        poblarResponsables();
-        applyFilters();
+async function guardarEdicion() {
+    if (!isAdmin || currentItemIndex === null || editorModoCreacion) return;
+    
+    const item = misDatos[currentItemIndex];
+    const cambios = {};
+    
+    document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
+        const clave = campo.dataset.key;
+        if (clave) cambios[clave] = campo.value;
+    });
+    
+    const numeroAnterior = String(item['N']);
+    const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
+    
+    if (!numeroNuevo) { 
+        await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso'); 
+        return; 
     }
+    
+    // Guardar en la base de datos
+    const { error } = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update(cambios)
+        .eq('N', numeroAnterior);
+    
+    if (error) {
+        console.error(error);
+        await showGenericModal('No se pudieron guardar los cambios: ' + error.message, 'Error');
+        return;
+    }
+    
+    if (numeroNuevo !== numeroAnterior) {
+        await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .update({ n_extintor: numeroNuevo })
+            .eq('n_extintor', numeroAnterior);
+        await supabaseClient
+            .from(TABLA_OBSERVACIONES)
+            .update({ n_extintor: numeroNuevo })
+            .eq('n_extintor', numeroAnterior);
+    }
+    
+    // ACTUALIZAR LOCALMENTE (sin recargar todo)
+    await actualizarUnExtintor(numeroNuevo);
+    
+    await showGenericModal('Registro actualizado correctamente.', 'Éxito');
+    closeEditorModal();
+    
+    // Actualizar lista de responsables sin recargar todo
+    poblarResponsables();
+    applyFilters();
+}
 
     function abrirNuevoExtintor() {
         if (!isAdmin) return;
@@ -2211,22 +2483,62 @@ function getUbicacionAsignada(item, esAdmin) {
     // ============================================================
     //  INICIO
     // ============================================================
-    async function iniciarApp() {
-        const { data, error } = await supabaseClient.from(TABLA_EXTINTORES).select('*');
-        if (error) {
-            tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#ef4444;">Error de Supabase: ${error.message}</td></tr>`;
-            return;
-        }
-        if (!data || data.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#94a3b8;">La tabla de Supabase está vacía o no tiene registros</td></tr>`;
-            return;
-        }
-        misDatos = [...data].sort(compararNumeros);
-        await cargarDatosSecundarios();
-        poblarResponsables();
-        renderCalendar();
-        applyFilters();
+async function iniciarApp() {
+    // Cargar extintores
+    const { data, error } = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .select('*')
+        .order('N');
+    
+    if (error) {
+        tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#ef4444;">Error de Supabase: ${error.message}</td></tr>`;
+        return;
     }
+    
+    if (!data || data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#94a3b8;">La tabla de Supabase está vacía o no tiene registros</td></tr>`;
+        return;
+    }
+    
+    misDatos = [...data].sort(compararNumeros);
+    
+    // Cargar SOLO movimientos activos (NO todos)
+    await cargarMovimientosActivos();
+    
+    // Cargar observaciones (solo últimas 100)
+    const { data: obsData } = await supabaseClient
+        .from(TABLA_OBSERVACIONES)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+    
+    observacionesPublicas = (obsData || []).map(o => ({ 
+        id: o.id, 
+        no: o.n_extintor, 
+        texto: o.texto, 
+        fecha: new Date(o.created_at).toLocaleDateString('es-ES') 
+    }));
+    
+    // Cargar historial (solo últimos 200 movimientos)
+    const { data: histData } = await supabaseClient
+        .from(TABLA_MOVIMIENTOS)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+    
+    historialCompleto = (histData || []).map(mov => ({
+        id: mov.id,
+        fecha: new Date(mov.created_at).toLocaleString('es-ES'),
+        no: mov.n_extintor,
+        tipo: mov.tipo,
+        personal: mov.personal || '-',
+        detalle: mov.detalle || ''
+    }));
+    
+    poblarResponsables();
+    renderCalendar();
+    applyFilters();
+}
 
     // Eventos para cerrar modales con clic fuera
     detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeModal(); });
