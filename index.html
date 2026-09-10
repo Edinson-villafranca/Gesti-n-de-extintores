@@ -131,7 +131,92 @@
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
+        /* ===== AUTOCOMPLETADO PERSONALIZADO ===== */
+        .autocomplete-wrap {
+            position: relative;
+            width: 100%;
+        }
+        .autocomplete-wrap input {
+            width: 100%;
+            padding: 10px 34px 10px 14px;
+            border: 1px solid #d1d9e6;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            color: #0f172a;
+        }
+        .autocomplete-wrap input:focus {
+            outline: none;
+            border-color: #4caf50;
+            box-shadow: 0 0 0 3px rgba(76,175,80,0.15);
+        }
+        .autocomplete-clear {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            padding: 4px 6px;
+            display: none;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .autocomplete-clear:hover {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+        .autocomplete-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 240px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 12px 28px -8px rgba(0,0,0,0.18);
+            z-index: 80;
+            padding: 4px 0;
+            animation: fadeInUp 0.15s ease;
+        }
+        .autocomplete-dropdown.open {
+            display: block;
+        }
+        .autocomplete-item {
+            padding: 9px 14px;
+            font-size: 0.88rem;
+            color: #1e293b;
+            cursor: pointer;
+            transition: background 0.12s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.active {
+            background: #f1f5f9;
+        }
+        .autocomplete-item mark {
+            background: #fef08a;
+            color: #0f172a;
+            font-weight: 600;
+            padding: 0 1px;
+            border-radius: 3px;
+        }
+        .autocomplete-empty {
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-style: italic;
+        }
         /* ===== CONTAINER ===== */
         .container {
             max-width: 1440px;
@@ -788,8 +873,13 @@
     <div class="filters-bar">
         <div class="filter-group">
             <label><i class="fas fa-user"></i> Responsable</label>
-            <input id="responsable-filter" list="responsable-options" placeholder="Buscar responsable..." autocomplete="off">
-            <datalist id="responsable-options"></datalist>
+            <div class="autocomplete-wrap" id="responsable-autocomplete-wrap">
+                <input id="responsable-filter" type="text" placeholder="Buscar responsable..." autocomplete="off">
+                <button type="button" class="autocomplete-clear" id="responsable-clear" aria-label="Limpiar">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="autocomplete-dropdown" id="responsable-dropdown"></div>
+            </div>
         </div>
         <div class="filter-group">
             <label><i class="fas fa-hashtag"></i> Nº Extintor</label>
@@ -861,7 +951,7 @@
 <div id="nuevo-reemplazo-modal" class="modal"><div class="modal-content" style="max-width:800px;"><div class="modal-header"><h2><i class="fas fa-exchange-alt" style="color:#059669;"></i> Registrar nuevo extintor de reemplazo</h2><button class="modal-close" onclick="closeNuevoReemplazoModal()">&times;</button></div><p style="color:#64748b; font-size:0.9rem;">Complete todos los datos del nuevo extintor. Al guardar, el extintor actual pasará a almacén con motivo "Reemplazado" y el nuevo extintor tomará su lugar en préstamo.</p><div id="nuevo-reemplazo-body" class="editor-grid"></div><div class="modal-actions"><button class="btn btn-success" onclick="confirmarNuevoReemplazo()"><i class="fas fa-save"></i> Crear y reemplazar</button><button class="btn btn-secondary" onclick="closeNuevoReemplazoModal()">Cancelar</button></div></div></div>
 
 <!-- Préstamo -->
-<div id="loan-modal" class="modal"><div class="modal-content"><div class="modal-header"><h2><i class="fas fa-handshake" style="color:#f59e0b;"></i> Registrar Préstamo</h2><button class="modal-close" onclick="closeLoanModal()">&times;</button></div><div class="modal-section"><div id="tipo-prestamo-wrapper"><div class="form-group"><label for="tipo-prestamo">Tipo de préstamo:</label><select id="tipo-prestamo" onchange="toggleCamposPrestamo()"><option value="interno">Préstamo interno</option><option value="garantia">Extintor de garantía</option><option value="unidad">Préstamo a unidad</option></select></div></div><div id="tipo-prestamo-fijo" style="display:none;"><p style="font-weight:600; color:#0ea5e9; font-size:1rem;"><i class="fas fa-tools"></i> Extintor de garantía</p></div><div id="campos-interno"><div class="form-group"><label for="personal-cambio">Personal a cargo del cambio:</label><input type="text" id="personal-cambio" placeholder="Nombre del personal"></div><div class="form-group"><label for="motivo-select">Motivo:</label><select id="motivo-select"><option value="Usado">Usado</option><option value="Despresurizado">Despresurizado</option><option value="Dañado">Dañado</option></select></div><div class="form-group"><label for="extintor-reemplazo">Código del extintor que lo reemplazará (STOCK):</label><input type="text" id="extintor-reemplazo" placeholder="N de extintor de STOCK"></div></div><div id="campos-garantia" style="display:none;"><div class="form-group"><label for="garantia-personal">Personal a cargo del cambio:</label><input type="text" id="garantia-personal" placeholder="Nombre del personal"></div><div class="form-group"><label for="garantia-reemplazo">Número del extintor de garantía:</label><input type="text" id="garantia-reemplazo" placeholder="Ej. G-001, REC-01, etc."></div></div><div id="campos-unidad" style="display:none;"><div class="form-group"><label for="unidad-area">Área:</label><select id="unidad-area"><option value="Operaciones Agrícolas">Operaciones Agrícolas</option><option value="Cosecha">Cosecha</option><option value="Transporte">Transporte</option><option value="SST">SST</option><option value="Administración">Administración</option><option value="Otro">Otro</option></select><input type="text" id="unidad-area-otro" placeholder="Especificar área..." style="margin-top:6px; display:none;"></div><div class="form-group"><label for="unidad-responsable">Responsable de la solicitud:</label><input type="text" id="unidad-responsable" placeholder="Nombre del responsable"></div><div class="form-group"><label for="unidad-asignada">Unidad asignada (ej. Alzadora 159 - Cosecha):</label><input type="text" id="unidad-asignada" placeholder="Escriba la unidad"></div></div></div><div class="modal-actions"><button class="btn btn-primary" onclick="guardarPrestamo()"><i class="fas fa-check"></i> Guardar</button><button class="btn btn-secondary" onclick="closeLoanModal()">Cancelar</button></div></div></div>
+<div id="loan-modal" class="modal"><div class="modal-content"><div class="modal-header"><h2><i class="fas fa-handshake" style="color:#f59e0b;"></i> Registrar Préstamo</h2><button class="modal-close" onclick="closeLoanModal()">&times;</button></div><div class="modal-section"><div id="tipo-prestamo-wrapper"><div class="form-group"><label for="tipo-prestamo">Tipo de préstamo:</label><select id="tipo-prestamo" onchange="toggleCamposPrestamo()"><option value="interno">Préstamo interno</option><option value="garantia">Extintor de garantía</option><option value="unidad">Préstamo a ubicación/unidad</option></select></div></div><div id="tipo-prestamo-fijo" style="display:none;"><p style="font-weight:600; color:#0ea5e9; font-size:1rem;"><i class="fas fa-tools"></i> Extintor de garantía</p></div><div id="campos-interno"><div class="form-group"><label for="personal-cambio">Personal a cargo del cambio:</label><input type="text" id="personal-cambio" placeholder="Nombre del personal"></div><div class="form-group"><label for="motivo-select">Motivo:</label><select id="motivo-select"><option value="Usado">Usado</option><option value="Despresurizado">Despresurizado</option><option value="Dañado">Dañado</option></select></div><div class="form-group"><label for="extintor-reemplazo">Código del extintor que lo reemplazará (STOCK):</label><input type="text" id="extintor-reemplazo" placeholder="N de extintor de STOCK"></div><div class="form-group"><label for="proxima-recarga">Próxima fecha de recarga (MM/AAAA):</label><input type="text" id="proxima-recarga" placeholder="Ej. 03/2028"></div></div><div id="campos-garantia" style="display:none;"><div class="form-group"><label for="garantia-personal">Personal a cargo del cambio:</label><input type="text" id="garantia-personal" placeholder="Nombre del personal"></div><div class="form-group"><label for="garantia-reemplazo">Número del extintor de garantía:</label><input type="text" id="garantia-reemplazo" placeholder="Ej. G-001, REC-01, etc."></div></div><div id="campos-unidad" style="display:none;"><div class="form-group"><label for="unidad-area">Área:</label><div class="autocomplete-wrap" id="unidad-area-autocomplete-wrap"><input type="text" id="unidad-area" placeholder="Escriba o seleccione un área..." autocomplete="off"><button type="button" class="autocomplete-clear" id="unidad-area-clear" aria-label="Limpiar"><i class="fas fa-times"></i></button><div class="autocomplete-dropdown" id="unidad-area-dropdown"></div></div></div><div class="form-group"><label for="unidad-responsable">Responsable de la solicitud:</label><input type="text" id="unidad-responsable" placeholder="Nombre del responsable"></div><div class="form-group"><label for="unidad-asignada">Ubicación/unidad asignada:</label><input type="text" id="unidad-asignada" placeholder="Escriba la ubicación o unidad"></div></div></div><div class="modal-actions"><button class="btn btn-primary" onclick="guardarPrestamo()"><i class="fas fa-check"></i> Guardar</button><button class="btn btn-secondary" onclick="closeLoanModal()">Cancelar</button></div></div></div>
 
 <!-- Historial -->
 <div id="history-modal" class="modal"><div class="modal-content" style="max-width:900px;"><div class="modal-header"><h2><i class="fas fa-history" style="color:#3b82f6;"></i> Historial de Movimientos</h2><button class="modal-close" onclick="closeHistoryModal()">&times;</button></div><div style="overflow-x:auto;"><table><thead style="background:#f1f5f9;"><tr><th>Fecha</th><th>N Extintor</th><th>Tipo</th><th>Personal</th><th>Detalle</th><th style="width:80px;">Acción</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeHistoryModal()">Cerrar</button></div></div></div>
@@ -902,7 +992,6 @@
     const observationFormModal = document.getElementById('observation-form-modal');
     const editorModal = document.getElementById('editor-modal');
     const numeroFilter = document.getElementById('numero-filter');
-    const responsableOptions = document.getElementById('responsable-options');
     const counterDisplay = document.getElementById('counter-display');
 
     let currentItemIndex = null;
@@ -918,6 +1007,176 @@
     let modoGarantiaForzado = false;
 
     let editorModoCreacion = false;
+
+    // ============================================================
+    //  COMPONENTE AUTOCOMPLETADO REUTILIZABLE
+    // ============================================================
+    function crearAutocomplete({ input, dropdown, clearBtn, getOptions, onSelect, onInput }) {
+        let opcionesActuales = [];
+        let activeIndex = -1;
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+            }[c]));
+        }
+
+        function scoreMatch(texto, query) {
+            if (!query) return 1;
+            const t = texto.toLowerCase();
+            const q = query.toLowerCase();
+            if (t === q) return 1000;
+            if (t.startsWith(q)) return 500 - (t.length - q.length);
+            const idx = t.indexOf(q);
+            if (idx !== -1) return 300 - idx;
+            // Subsequence (caracteres en orden)
+            let ti = 0, qi = 0, gaps = 0, lastMatch = -1;
+            while (ti < t.length && qi < q.length) {
+                if (t[ti] === q[qi]) {
+                    if (lastMatch !== -1) gaps += ti - lastMatch - 1;
+                    lastMatch = ti;
+                    qi++;
+                }
+                ti++;
+            }
+            if (qi === q.length) return 100 - gaps;
+            return -1;
+        }
+
+        function resaltar(texto, query) {
+            if (!query) return escapeHtml(texto);
+            const t = texto.toLowerCase();
+            const q = query.toLowerCase();
+            const idx = t.indexOf(q);
+            if (idx !== -1) {
+                return escapeHtml(texto.slice(0, idx)) +
+                       '<mark>' + escapeHtml(texto.slice(idx, idx + q.length)) + '</mark>' +
+                       escapeHtml(texto.slice(idx + q.length));
+            }
+            let result = '';
+            let qi = 0;
+            for (let i = 0; i < texto.length; i++) {
+                if (qi < q.length && texto[i].toLowerCase() === q[qi]) {
+                    result += '<mark>' + escapeHtml(texto[i]) + '</mark>';
+                    qi++;
+                } else {
+                    result += escapeHtml(texto[i]);
+                }
+            }
+            return result;
+        }
+
+        function render() {
+            dropdown.innerHTML = '';
+            activeIndex = -1;
+            if (opcionesActuales.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'autocomplete-empty';
+                empty.textContent = 'Sin coincidencias. Puede escribir un valor nuevo.';
+                dropdown.appendChild(empty);
+                return;
+            }
+            opcionesActuales.forEach((opt) => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.innerHTML = resaltar(opt, input.value.trim());
+                item.dataset.value = opt;
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    seleccionar(opt);
+                });
+                dropdown.appendChild(item);
+            });
+        }
+
+        function seleccionar(valor) {
+            input.value = valor;
+            cerrar();
+            actualizarClear();
+            if (onSelect) onSelect(valor);
+            if (onInput) onInput(valor);
+        }
+
+        function abrir() { dropdown.classList.add('open'); }
+        function cerrar() { dropdown.classList.remove('open'); activeIndex = -1; }
+        function actualizarClear() {
+            if (!clearBtn) return;
+            clearBtn.style.display = input.value.trim() ? 'block' : 'none';
+        }
+
+        function filtrar() {
+            const q = input.value.trim();
+            const todas = getOptions();
+            if (!q) {
+                opcionesActuales = [...todas];
+            } else {
+                opcionesActuales = todas
+                    .map(opt => ({ opt, score: scoreMatch(opt, q) }))
+                    .filter(x => x.score > 0)
+                    .sort((a, b) => b.score - a.score || a.opt.localeCompare(b.opt, 'es', { sensitivity: 'base' }))
+                    .map(x => x.opt);
+            }
+            render();
+        }
+
+        input.addEventListener('focus', () => { filtrar(); abrir(); });
+
+        input.addEventListener('input', () => {
+            filtrar();
+            abrir();
+            actualizarClear();
+            if (onInput) onInput(input.value.trim());
+        });
+
+        input.addEventListener('keydown', (e) => {
+            const items = dropdown.querySelectorAll('.autocomplete-item');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (items.length === 0) return;
+                activeIndex = (activeIndex + 1) % items.length;
+                items.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+                items[activeIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (items.length === 0) return;
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                items.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+                items[activeIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter') {
+                if (activeIndex >= 0 && items[activeIndex]) {
+                    e.preventDefault();
+                    seleccionar(items[activeIndex].dataset.value);
+                }
+            } else if (e.key === 'Escape') {
+                cerrar();
+            }
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                input.value = '';
+                actualizarClear();
+                if (onInput) onInput('');
+                if (onSelect) onSelect('');
+                filtrar();
+                abrir();
+                input.focus();
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!input.parentElement.contains(e.target)) {
+                cerrar();
+            }
+        });
+
+        return {
+            refrescar: () => { filtrar(); actualizarClear(); },
+            cerrar,
+            getValor: () => input.value.trim()
+        };
+    }
 
     // ============================================================
     //  MENÚ HAMBURGUESA
@@ -1041,82 +1300,80 @@
         actualizarMenuAdmin();
         if (garantiaHeader) garantiaHeader.style.display = 'table-cell';
     }
-async function cargarMovimientosActivos() {
-    try {
-        const { data, error } = await supabaseClient
-            .from(TABLA_MOVIMIENTOS)
-            .select('*')
-            .eq('activo', true)
-            .in('tipo', ['prestamo_interno', 'prestamo_unidad', 'garantia']);
-        
-        if (error) {
-            console.error('Error cargando movimientos activos:', error);
-            return;
-        }
-        
-        // Limpiar objetos de movimientos activos
-        movimientosPrestamoActivos = {};
-        movimientosGarantiaActivos = {};
-        movimientosActivos = {};
-        
-        // Procesar cada movimiento activo
-        data.forEach(mov => {
-            const fecha = new Date(mov.created_at).toLocaleString('es-ES');
-            
-            if (mov.tipo === 'prestamo_interno' || mov.tipo === 'prestamo_unidad') {
-                movimientosPrestamoActivos[mov.n_extintor] = {
-                    tipo: mov.tipo,
-                    personal: mov.personal,
-                    motivo: mov.motivo,
-                    reemplazo: mov.reemplazo,
-                    responsable_destino: mov.responsable_destino,
-                    ubicacion_destino: mov.ubicacion_destino,
-                    fecha: fecha
-                };
-                movimientosActivos[mov.n_extintor] = movimientosPrestamoActivos[mov.n_extintor];
-            } else if (mov.tipo === 'garantia') {
-                movimientosGarantiaActivos[mov.n_extintor] = {
-                    reemplazo: mov.reemplazo,
-                    personal: mov.personal,
-                    fecha: fecha
-                };
-                movimientosActivos[mov.n_extintor] = movimientosGarantiaActivos[mov.n_extintor];
-            }
-        });
-        
-    } catch (err) {
-        console.error('Error inesperado:', err);
-    }
-}
 
-async function actualizarUnExtintor(numero) {
-    try {
-        const { data, error } = await supabaseClient
-            .from(TABLA_EXTINTORES)
-            .select('*')
-            .eq('N', numero)
-            .single();
-        
-        if (error) {
-            console.error('Error actualizando extintor:', error);
+    async function cargarMovimientosActivos() {
+        try {
+            const { data, error } = await supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .select('*')
+                .eq('activo', true)
+                .in('tipo', ['prestamo_interno', 'prestamo_unidad', 'garantia']);
+            
+            if (error) {
+                console.error('Error cargando movimientos activos:', error);
+                return;
+            }
+            
+            movimientosPrestamoActivos = {};
+            movimientosGarantiaActivos = {};
+            movimientosActivos = {};
+            
+            data.forEach(mov => {
+                const fecha = new Date(mov.created_at).toLocaleString('es-ES');
+                
+                if (mov.tipo === 'prestamo_interno' || mov.tipo === 'prestamo_unidad') {
+                    movimientosPrestamoActivos[mov.n_extintor] = {
+                        tipo: mov.tipo,
+                        personal: mov.personal,
+                        motivo: mov.motivo,
+                        reemplazo: mov.reemplazo,
+                        responsable_destino: mov.responsable_destino,
+                        ubicacion_destino: mov.ubicacion_destino,
+                        fecha: fecha
+                    };
+                    movimientosActivos[mov.n_extintor] = movimientosPrestamoActivos[mov.n_extintor];
+                } else if (mov.tipo === 'garantia') {
+                    movimientosGarantiaActivos[mov.n_extintor] = {
+                        reemplazo: mov.reemplazo,
+                        personal: mov.personal,
+                        fecha: fecha
+                    };
+                    movimientosActivos[mov.n_extintor] = movimientosGarantiaActivos[mov.n_extintor];
+                }
+            });
+            
+        } catch (err) {
+            console.error('Error inesperado:', err);
+        }
+    }
+
+    async function actualizarUnExtintor(numero) {
+        try {
+            const { data, error } = await supabaseClient
+                .from(TABLA_EXTINTORES)
+                .select('*')
+                .eq('N', numero)
+                .single();
+            
+            if (error) {
+                console.error('Error actualizando extintor:', error);
+                return null;
+            }
+            
+            const idx = misDatos.findIndex(item => String(item["N"]) === String(numero));
+            if (idx !== -1) {
+                misDatos[idx] = data;
+            } else {
+                misDatos.push(data);
+            }
+            
+            return data;
+        } catch (err) {
+            console.error('Error inesperado:', err);
             return null;
         }
-        
-        // Buscar el extintor en misDatos y reemplazarlo
-        const idx = misDatos.findIndex(item => String(item["N"]) === String(numero));
-        if (idx !== -1) {
-            misDatos[idx] = data;
-        } else {
-            // Si no existe, agregarlo
-            misDatos.push(data);
-        }
-        
-        return data;
-    } catch (err) {
-        console.error('Error inesperado:', err);
-        return null;
     }
-}
+
     async function activarAdmin() {
         if (isAdmin) {
             sessionStorage.removeItem('extintor_admin');
@@ -1155,10 +1412,15 @@ async function actualizarUnExtintor(numero) {
     // ============================================================
     const MESES = { jan: 1, enero: 1, feb: 2, febrero: 2, mar: 3, marzo: 3, apr: 4, abr: 4, abril: 4, may: 5, mayo: 5, jun: 6, junio: 6, jul: 7, julio: 7, aug: 8, ago: 8, agosto: 8, sep: 9, sept: 9, septiembre: 9, oct: 10, octubre: 10, nov: 11, noviembre: 11, dec: 12, dic: 12, diciembre: 12 };
     function getMonthYear(dateStr) { if (!dateStr || String(dateStr).trim() === "") return null; const value = String(dateStr).trim().toLowerCase().replace(/\./g,'').replace(/\s+/g,''); let match = value.match(/^(\d{1,2})[\/-](\d{2}|\d{4})$/); if (match) { const month = Number(match[1]); let year = Number(match[2]); if (month >= 1 && month <= 12) { if (year < 100) year += 2000; return { month, year }; } } match = value.match(/^(\d{2}|\d{4})[\/-]([a-záéíóúñ]+)$/i); if (match) { let year = Number(match[1]); const month = MESES[match[2]]; if (month) { if (year < 100) year += 2000; return { month, year }; } } match = value.match(/^([a-záéíóúñ]+)[\/-](\d{2}|\d{4})$/i); if (match) { let year = Number(match[2]); const month = MESES[match[1]]; if (month) { if (year < 100) year += 2000; return { month, year }; } } return null; }
-    function parseDate(dateStr) { const result = getMonthYear(dateStr); if (!result) return null; return new Date(result.year, result.month, 0, 23, 59, 59, 999); }
+    function parseDate(dateStr) { const result = getMonthYear(dateStr); if (!result) return null; return new Date(result.year, result.month - 1, 1, 23, 59, 59, 999); }
     function formatMonthYear(dateStr) { const result = getMonthYear(dateStr); if (!result) return dateStr || "-"; return `${String(result.month).padStart(2, '0')}/${result.year}`; }
     function isExpired(dateStr) { const date = parseDate(dateStr); return date ? date < new Date() : false; }
-    function isItemExpired(item) { return isExpired(item["F. VENC."]); }
+    function isItemExpired(item) {
+    const fechaEfectiva = (item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "")
+        ? item["proxima_recarga"]
+        : item["F. VENC."];
+    return isExpired(fechaEfectiva);
+}
 
     // ============================================================
     //  CONDICIÓN, ESTADO, UBICACIÓN
@@ -1177,24 +1439,16 @@ async function actualizarUnExtintor(numero) {
     }
     function getEstadoBadgeClass(estado) { if (estado === 'Prestado') return 'badge-prestado'; if (estado === 'Almacén SST') return 'badge-almacen'; return ''; }
     function limpiar(valor) { return (valor !== undefined && valor !== null && String(valor).trim() !== "") ? valor : "-"; }
-function getUbicacionActual(item, esAdmin) {
-    // Si tiene ubicacion_prestamo, mostrarla
-    if (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") {
-        return item["ubicacion_prestamo"];
-    }
-    // Si no tiene ubicacion_prestamo, mostrar "-"
-    return "-";
-}
 
-function getUbicacionAsignada(item, esAdmin) {
-    // Siempre mostrar UBICACION como ubicación asignada
+    function getUbicacionAsignada(item, esAdmin) {
+    const estado = item["ESTADO"] || "";
+    const ubicacion = String(item["UBICACION"] || "").trim();
+    // Ocultar STOCK al público cuando el extintor está en préstamo
+    if (!esAdmin && estado === "Prestado" && ubicacion.toUpperCase() === "STOCK") {
+        return "-";
+    }
     return item["UBICACION"] || "-";
 }
-    function getUbicacionAsignada(item, esAdmin) {
-        const estado = item["ESTADO"] || "";
-        if (!esAdmin && estado === "Prestado") return "-";
-        return item["UBICACION"] || "-";
-    }
 
     // ============================================================
     //  CALENDARIO
@@ -1286,22 +1540,25 @@ function getUbicacionAsignada(item, esAdmin) {
         return parsed ? parsed.year * 12 + parsed.month : null;
     }
     function itemMatchesDateRange(item, desde, hasta) {
-        if (!desde && !hasta) return true;
-        const inicio = desde ? getMonthIndex(desde) : null;
-        const fin = hasta ? getMonthIndex(hasta) : null;
-        if (inicio !== null && fin !== null && inicio > fin) return false;
-        const fechaItem = getMonthIndex(item["F. VENC."]);
-        if (fechaItem === null) return false;
-        if (inicio !== null && fechaItem < inicio) return false;
-        if (fin !== null && fechaItem > fin) return false;
-        return true;
-    }
+    if (!desde && !hasta) return true;
+    const inicio = desde ? getMonthIndex(desde) : null;
+    const fin = hasta ? getMonthIndex(hasta) : null;
+    if (inicio !== null && fin !== null && inicio > fin) return false;
+    const fechaEfectiva = (item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "")
+        ? item["proxima_recarga"]
+        : item["F. VENC."];
+    const fechaItem = getMonthIndex(fechaEfectiva);
+    if (fechaItem === null) return false;
+    if (inicio !== null && fechaItem < inicio) return false;
+    if (fin !== null && fechaItem > fin) return false;
+    return true;
+}
 
     // ============================================================
     //  FILTROS Y RENDER
     // ============================================================
     function applyFilters() {
-        const selectedResponsable = responsableFilter.value;
+        const selectedResponsable = responsableFilter.value.trim();
         const selectedNumero = numeroFilter ? numeroFilter.value.trim().toLowerCase() : "";
         const selectedDesde = calPendingDesde || "";
         const selectedHasta = calPendingHasta || "";
@@ -1312,13 +1569,13 @@ function getUbicacionAsignada(item, esAdmin) {
             const responsableActual = String(item["AREA RESPONSABLE"] ?? "").trim();
             let matchResponsable = true;
             if (selectedResponsable) {
-                matchResponsable = responsableActual === selectedResponsable;
+                matchResponsable = responsableActual.toLowerCase() === selectedResponsable.toLowerCase();
                 if (!matchResponsable && movimientosActivos[no]) {
                     const mov = movimientosActivos[no];
-                    if (mov.responsable_destino === selectedResponsable) matchResponsable = true;
+                    if (String(mov.responsable_destino || '').toLowerCase() === selectedResponsable.toLowerCase()) matchResponsable = true;
                 }
                 if (!matchResponsable && item["ubicacion_prestamo"]) {
-                    if (item["ubicacion_prestamo"].includes(`Préstamo a: ${selectedResponsable}`)) matchResponsable = true;
+                    if (item["ubicacion_prestamo"].toLowerCase().includes(`préstamo a: ${selectedResponsable.toLowerCase()}`)) matchResponsable = true;
                 }
             }
             if (!matchResponsable) return false;
@@ -1339,10 +1596,44 @@ function getUbicacionAsignada(item, esAdmin) {
         return String(a["N"] ?? "").localeCompare(String(b["N"] ?? ""), "es", { numeric: true });
     }
 
+    let responsableAutocomplete = null;
+    let unidadAreaAutocomplete = null;
+
+    function obtenerAreasResponsables() {
+        return [...new Set(
+            misDatos.map(item => String(item["AREA RESPONSABLE"] ?? "").trim()).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+    }
+
     function poblarResponsables() {
-        const responsables = [...new Set(misDatos.map(item => String(item["AREA RESPONSABLE"] ?? "").trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b, "es", { sensitivity: "base" }));
-        responsableOptions.innerHTML = "";
-        responsables.forEach(resp => { const opt = document.createElement("option"); opt.value = resp; responsableOptions.appendChild(opt); });
+        if (responsableAutocomplete) responsableAutocomplete.refrescar();
+        if (unidadAreaAutocomplete) unidadAreaAutocomplete.refrescar();
+    }
+
+    function inicializarAutocompletes() {
+        const respInput = document.getElementById('responsable-filter');
+        const respDropdown = document.getElementById('responsable-dropdown');
+        const respClear = document.getElementById('responsable-clear');
+
+        responsableAutocomplete = crearAutocomplete({
+            input: respInput,
+            dropdown: respDropdown,
+            clearBtn: respClear,
+            getOptions: obtenerAreasResponsables,
+            onSelect: () => applyFilters(),
+            onInput: () => applyFilters()
+        });
+
+        const areaInput = document.getElementById('unidad-area');
+        const areaDropdown = document.getElementById('unidad-area-dropdown');
+        const areaClear = document.getElementById('unidad-area-clear');
+
+        unidadAreaAutocomplete = crearAutocomplete({
+            input: areaInput,
+            dropdown: areaDropdown,
+            clearBtn: areaClear,
+            getOptions: obtenerAreasResponsables
+        });
     }
 
     function updateCounter(mostrados, total) {
@@ -1350,52 +1641,48 @@ function getUbicacionAsignada(item, esAdmin) {
     }
 
     function renderTable(data) {
-    tableBody.innerHTML = "";
-    if (data.length === 0) {
-        const cols = isAdmin ? 7 : 6;
-        tableBody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center; padding:24px; color:#94a3b8;">No hay resultados.</td></tr>`;
-        return;
-    }
-    const mostrarEstado = isAdmin;
-    [...data].sort(compararNumeros).forEach((item) => {
-        const condicion = getCondicionItem(item);
-        const estado = getEstadoItem(item);
-        const no = String(item["N"]);
-        
-        // OBTENER UBICACIONES CORRECTAMENTE
-        // Ubicación asignada: siempre la UBICACION original
-        const ubicacionAsignada = item["UBICACION"] || "-";
-        
-        // Ubicación actual: ubicacion_prestamo si existe, si no "-"
-        const ubicacionActual = (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") 
-            ? item["ubicacion_prestamo"] 
-            : "-";
-        
-        const garantiaReemplazo = getGarantiaReemplazo(item);
-
-        const row = document.createElement('tr');
-        row.setAttribute('data-index', misDatos.indexOf(item));
-
-        let html = `
-            <td><strong>${item["N"] || "-"}</strong></td>
-            <td>${item["AREA RESPONSABLE"] || "-"}</td>
-            <td>${ubicacionAsignada}</td>
-            <td>${ubicacionActual}</td>
-            <td><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></td>
-            <td>${garantiaReemplazo}</td>
-        `;
-        if (mostrarEstado) {
-            const estadoMostrar = estado || "";
-            html += `<td>${estadoMostrar ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</td>`;
+        tableBody.innerHTML = "";
+        if (data.length === 0) {
+            const cols = isAdmin ? 7 : 6;
+            tableBody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center; padding:24px; color:#94a3b8;">No hay resultados.</td></tr>`;
+            return;
         }
-        row.innerHTML = html;
-        row.addEventListener('click', () => {
-            currentItemIndex = parseInt(row.getAttribute('data-index'));
-            showModal(misDatos[currentItemIndex]);
+        const mostrarEstado = isAdmin;
+        [...data].sort(compararNumeros).forEach((item) => {
+            const condicion = getCondicionItem(item);
+            const estado = getEstadoItem(item);
+            
+            const ubicacionAsignada = getUbicacionAsignada(item, isAdmin);
+            
+            const ubicacionActual = (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") 
+                ? item["ubicacion_prestamo"] 
+                : "-";
+            
+            const garantiaReemplazo = getGarantiaReemplazo(item);
+
+            const row = document.createElement('tr');
+            row.setAttribute('data-index', misDatos.indexOf(item));
+
+            let html = `
+                <td><strong>${item["N"] || "-"}</strong></td>
+                <td>${item["AREA RESPONSABLE"] || "-"}</td>
+                <td>${ubicacionAsignada}</td>
+                <td>${ubicacionActual}</td>
+                <td><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></td>
+                <td>${garantiaReemplazo}</td>
+            `;
+            if (mostrarEstado) {
+                const estadoMostrar = estado || "";
+                html += `<td>${estadoMostrar ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</td>`;
+            }
+            row.innerHTML = html;
+            row.addEventListener('click', () => {
+                currentItemIndex = parseInt(row.getAttribute('data-index'));
+                showModal(misDatos[currentItemIndex]);
+            });
+            tableBody.appendChild(row);
         });
-        tableBody.appendChild(row);
-    });
-}
+    }
 
     // ============================================================
     //  HISTORIAL Y OBSERVACIONES
@@ -1426,90 +1713,79 @@ function getUbicacionAsignada(item, esAdmin) {
         });
     }
 
-async function eliminarMovimiento(index) {
-    const mov = historialCompleto[index];
-    if (!mov || !mov.id) {
-        await showGenericModal('No se puede eliminar este movimiento (falta ID).', 'Error');
-        return;
-    }
-    
-    const confirmar = await showGenericModal(
-        `¿Desea eliminar el movimiento del extintor ${mov.no} (${mov.tipo}) del ${mov.fecha}?`,
-        'Confirmar eliminación',
-        'Eliminar',
-        'Cancelar'
-    );
-    
-    if (!confirmar) return;
-
-    try {
-        // 1. Eliminar de la base de datos
-        const { error } = await supabaseClient
-            .from(TABLA_MOVIMIENTOS)
-            .delete()
-            .eq('id', mov.id);
-
-        if (error) {
-            console.error('Error eliminando movimiento:', error);
-            await showGenericModal('Error al eliminar el movimiento: ' + error.message, 'Error');
+    async function eliminarMovimiento(index) {
+        const mov = historialCompleto[index];
+        if (!mov || !mov.id) {
+            await showGenericModal('No se puede eliminar este movimiento (falta ID).', 'Error');
             return;
         }
-
-        // 2. ELIMINAR LOCALMENTE del historial (sin recargar todo)
-        historialCompleto.splice(index, 1);
-
-        // 3. Verificar si este movimiento estaba ACTIVO y actualizar movimientos activos
-        // Buscar si hay otro movimiento activo para este extintor
-        const { data: movimientosActivosDB } = await supabaseClient
-            .from(TABLA_MOVIMIENTOS)
-            .select('*')
-            .eq('n_extintor', mov.no)
-            .eq('activo', true)
-            .in('tipo', ['prestamo_interno', 'prestamo_unidad', 'garantia']);
-
-        if (movimientosActivosDB && movimientosActivosDB.length > 0) {
-            // Si hay movimientos activos, actualizar los objetos de movimientos activos
-            await cargarMovimientosActivos();
-        } else {
-            // Si no hay movimientos activos, eliminar de los objetos locales
-            delete movimientosPrestamoActivos[mov.no];
-            delete movimientosGarantiaActivos[mov.no];
-            delete movimientosActivos[mov.no];
-            
-            // También limpiar ubicacion_prestamo y ESTADO del extintor si estaba activo
-            const { data: extintor } = await supabaseClient
-                .from(TABLA_EXTINTORES)
-                .select('*')
-                .eq('N', mov.no)
-                .single();
-            
-            if (extintor && (extintor.ubicacion_prestamo || extintor.ESTADO === 'Prestado' || extintor.ESTADO === 'Almacén SST')) {
-                await supabaseClient
-                    .from(TABLA_EXTINTORES)
-                    .update({
-                        ubicacion_prestamo: null,
-                        ESTADO: null
-                    })
-                    .eq('N', mov.no);
-                
-                // Actualizar localmente el extintor
-                await actualizarUnExtintor(mov.no);
-            }
-        }
-
-        // 4. Actualizar la tabla de movimientos (sin recargar todo)
-        renderizarHistorial();
         
-        // 5. Refrescar la tabla principal
-        applyFilters();
+        const confirmar = await showGenericModal(
+            `¿Desea eliminar el movimiento del extintor ${mov.no} (${mov.tipo}) del ${mov.fecha}?`,
+            'Confirmar eliminación',
+            'Eliminar',
+            'Cancelar'
+        );
+        
+        if (!confirmar) return;
 
-        await showGenericModal('Movimiento eliminado correctamente.', 'Éxito');
+        try {
+            const { error } = await supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .delete()
+                .eq('id', mov.id);
 
-    } catch (err) {
-        console.error('Error inesperado:', err);
-        await showGenericModal('Error inesperado: ' + err.message, 'Error');
+            if (error) {
+                console.error('Error eliminando movimiento:', error);
+                await showGenericModal('Error al eliminar el movimiento: ' + error.message, 'Error');
+                return;
+            }
+
+            historialCompleto.splice(index, 1);
+
+            const { data: movimientosActivosDB } = await supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .select('*')
+                .eq('n_extintor', mov.no)
+                .eq('activo', true)
+                .in('tipo', ['prestamo_interno', 'prestamo_unidad', 'garantia']);
+
+            if (movimientosActivosDB && movimientosActivosDB.length > 0) {
+                await cargarMovimientosActivos();
+            } else {
+                delete movimientosPrestamoActivos[mov.no];
+                delete movimientosGarantiaActivos[mov.no];
+                delete movimientosActivos[mov.no];
+                
+                const { data: extintor } = await supabaseClient
+                    .from(TABLA_EXTINTORES)
+                    .select('*')
+                    .eq('N', mov.no)
+                    .single();
+                
+                if (extintor && (extintor.ubicacion_prestamo || extintor.ESTADO === 'Prestado' || extintor.ESTADO === 'Almacén SST')) {
+                    await supabaseClient
+                        .from(TABLA_EXTINTORES)
+                        .update({
+                            ubicacion_prestamo: null,
+                            ESTADO: null
+                        })
+                        .eq('N', mov.no);
+                    
+                    await actualizarUnExtintor(mov.no);
+                }
+            }
+
+            renderizarHistorial();
+            applyFilters();
+
+            await showGenericModal('Movimiento eliminado correctamente.', 'Éxito');
+
+        } catch (err) {
+            console.error('Error inesperado:', err);
+            await showGenericModal('Error inesperado: ' + err.message, 'Error');
+        }
     }
-}
 
     function verObservacionesGenerales() {
         renderizarListaObservacionesGenerales();
@@ -1556,44 +1832,40 @@ async function eliminarMovimiento(index) {
         renderizarListaObservacionesGenerales();
     }
 
-async function eliminarObservacion(index) {
-    const o = observacionesPublicas[index];
-    
-    const confirmar = await showGenericModal(
-        '¿Desea eliminar esta observación?', 
-        'Confirmar', 
-        'Sí', 
-        'No'
-    );
-    
-    if (!confirmar) return;
-    
-    try {
-        // 1. Eliminar de la base de datos
-        const { error } = await supabaseClient
-            .from(TABLA_OBSERVACIONES)
-            .delete()
-            .eq('id', o.id);
+    async function eliminarObservacion(index) {
+        const o = observacionesPublicas[index];
         
-        if (error) {
-            console.error(error);
-            await showGenericModal('No se pudo eliminar: ' + error.message, 'Error');
-            return;
+        const confirmar = await showGenericModal(
+            '¿Desea eliminar esta observación?', 
+            'Confirmar', 
+            'Sí', 
+            'No'
+        );
+        
+        if (!confirmar) return;
+        
+        try {
+            const { error } = await supabaseClient
+                .from(TABLA_OBSERVACIONES)
+                .delete()
+                .eq('id', o.id);
+            
+            if (error) {
+                console.error(error);
+                await showGenericModal('No se pudo eliminar: ' + error.message, 'Error');
+                return;
+            }
+            
+            observacionesPublicas.splice(index, 1);
+            renderizarListaObservacionesGenerales();
+            
+            await showGenericModal('Observación eliminada correctamente.', 'Éxito');
+            
+        } catch (err) {
+            console.error('Error inesperado:', err);
+            await showGenericModal('Error inesperado: ' + err.message, 'Error');
         }
-        
-        // 2. ELIMINAR LOCALMENTE (sin recargar todo)
-        observacionesPublicas.splice(index, 1);
-        
-        // 3. Refrescar la lista de observaciones
-        renderizarListaObservacionesGenerales();
-        
-        await showGenericModal('Observación eliminada correctamente.', 'Éxito');
-        
-    } catch (err) {
-        console.error('Error inesperado:', err);
-        await showGenericModal('Error inesperado: ' + err.message, 'Error');
     }
-}
     function closeHistoryModal() { historyModal.classList.remove('active'); }
     function closeObservationsModal() { observationsModal.classList.remove('active'); }
 
@@ -1631,103 +1903,102 @@ async function eliminarObservacion(index) {
     }
 
     // ============================================================
-    //  MODAL DETALLES - CORREGIDO
+    //  MODAL DETALLES
     // ============================================================
     function showModal(item) {
-    const modalBody = document.getElementById('modal-body');
-    const modalActions = document.getElementById('modal-actions');
-    const condicion = getCondicionItem(item);
-    const estado = getEstadoItem(item);
-    const no = String(item["N"]);
-    const prestamoActivo = movimientosPrestamoActivos[no];
-    const garantiaActiva = movimientosGarantiaActivos[no];
-    
-    // Ubicación asignada: siempre UBICACION
-    const ubicacionAsignada = item["UBICACION"] || "-";
-    
-    // Ubicación actual: ubicacion_prestamo si existe, si no "-"
-    const ubicacionActual = (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") 
-        ? item["ubicacion_prestamo"] 
-        : "-";
-    
-    const evidencia = item["evidencia"] || "";
-    const evidenciaHTML = evidencia.trim() ? `<div class="modal-row"><label>Evidencia baja:</label><value><a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Ver evidencia</a></value></div>` : "";
+        const modalBody = document.getElementById('modal-body');
+        const modalActions = document.getElementById('modal-actions');
+        const condicion = getCondicionItem(item);
+        const estado = getEstadoItem(item);
+        const no = String(item["N"]);
+        const prestamoActivo = movimientosPrestamoActivos[no];
+        const garantiaActiva = movimientosGarantiaActivos[no];
+        
+        const ubicacionAsignada = getUbicacionAsignada(item, isAdmin);
+        
+        const ubicacionActual = (item["ubicacion_prestamo"] && item["ubicacion_prestamo"].trim() !== "") 
+            ? item["ubicacion_prestamo"] 
+            : "-";
+        
+        const evidencia = item["evidencia"] || "";
+        const evidenciaHTML = evidencia.trim() ? `<div class="modal-row"><label>Evidencia baja:</label><value><a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Ver evidencia</a></value></div>` : "";
 
-    let movimientoHTML = '';
-    if (prestamoActivo) {
-        const tipoTexto = prestamoActivo.tipo === 'prestamo_unidad' ? 'Préstamo a Unidad' : 'Préstamo Interno';
-        movimientoHTML += `
-            <div class="modal-section" style="background:#fefce8;border:1px solid #fef08a;padding:14px;border-radius:12px;margin-top:8px;">
-                <div class="modal-section-title" style="color:#854d0e;"><i class="fas fa-exchange-alt"></i> Préstamo Activo</div>
-                <div class="modal-row"><label>Tipo:</label><value><strong>${tipoTexto}</strong></value></div>
-                ${prestamoActivo.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(prestamoActivo.personal)}</strong></value></div>` : ''}
-                ${prestamoActivo.motivo ? `<div class="modal-row"><label>Motivo:</label><value><strong>${limpiar(prestamoActivo.motivo)}</strong></value></div>` : ''}
-                ${prestamoActivo.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(prestamoActivo.reemplazo)}</strong></value></div>` : ''}
-                ${prestamoActivo.responsable_destino ? `<div class="modal-row"><label>Responsable destino:</label><value><strong>${limpiar(prestamoActivo.responsable_destino)}</strong></value></div>` : ''}
-                ${prestamoActivo.ubicacion_destino ? `<div class="modal-row"><label>Ubicación destino:</label><value><strong>${limpiar(prestamoActivo.ubicacion_destino)}</strong></value></div>` : ''}
-                <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(prestamoActivo.fecha)}</value></div>
-            </div>`;
-    }
-    if (garantiaActiva) {
-        movimientoHTML += `
-            <div class="modal-section" style="background:#dbeafe;border:1px solid #93c5fd;padding:14px;border-radius:12px;margin-top:8px;">
-                <div class="modal-section-title" style="color:#1e40af;"><i class="fas fa-tools"></i> Garantía Activa</div>
-                ${garantiaActiva.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(garantiaActiva.personal)}</strong></value></div>` : ''}
-                ${garantiaActiva.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(garantiaActiva.reemplazo)}</strong></value></div>` : ''}
-                <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(garantiaActiva.fecha)}</value></div>
-            </div>`;
-    }
-
-    modalBody.innerHTML = `
-        <div class="modal-section"><div class="modal-section-title"><i class="fas fa-info-circle"></i> Información General</div>
-            <div class="modal-row"><label>N Extintor:</label><value><strong>${limpiar(item["N"])}</strong></value></div>
-            <div class="modal-row"><label>N Serie Actual:</label><value>${limpiar(item["N SERIE ACTUAL"])}</value></div>
-            <div class="modal-row"><label>Tipo:</label><value>${limpiar(item["TIPO"])}</value></div>
-            <div class="modal-row"><label>Capacidad:</label><value>${limpiar(item["CAP."])}</value></div>
-        </div>
-        <div class="modal-section"><div class="modal-section-title"><i class="fas fa-map-pin"></i> Ubicación</div>
-            <div class="modal-row"><label>Responsable:</label><value>${limpiar(item["AREA RESPONSABLE"])}</value></div>
-            <div class="modal-row"><label>Ubicación asignada:</label><value>${ubicacionAsignada}</value></div>
-            <div class="modal-row"><label>Ubicación actual:</label><value>${ubicacionActual}</value></div>
-        </div>
-        <div class="modal-section"><div class="modal-section-title"><i class="fas fa-tag"></i> Condición y Estado</div>
-            <div class="modal-row"><label>Condición:</label><value><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></value></div>
-            ${isAdmin ? `<div class="modal-row"><label>Estado:</label><value>${estado ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</value></div>` : ''}
-            ${evidenciaHTML}
-            <div class="modal-row"><label>Vencimiento PH:</label><value>${formatMonthYear(item["ph_vencimiento"])}</value></div>
-            <div class="modal-row"><label>Vencimiento recarga:</label><value>${formatMonthYear(item["F. VENC."])}</value></div>
-        </div>
-        ${movimientoHTML}`;
-
-    let botonesAccion = '';
-    if (!isAdmin) {
-        botonesAccion += `<button class="btn btn-primary" style="background:#059669;color:white;" onclick="abrirFormularioObservacion(${currentItemIndex})"><i class="fas fa-pen"></i> Registrar Observación</button>`;
-    }
-    const esBaja = (item["CONDICION"] === "Baja");
-
-    if (isAdmin) {
-        if (esBaja) {
-            botonesAccion += `<button class="btn btn-success" onclick="abrirNuevoExtintor()"><i class="fas fa-plus"></i> Registrar nuevo extintor</button>`;
-        } else {
-            if (!prestamoActivo) {
-                botonesAccion += `<button class="btn" style="background:#dc2626;color:white;" onclick="openLoanForm(${currentItemIndex})"><i class="fas fa-handshake"></i> Préstamo</button>`;
-            }
-            if (!garantiaActiva) {
-                botonesAccion += `<button class="btn btn-garantia" onclick="openLoanFormGarantia(${currentItemIndex})"><i class="fas fa-tools"></i> Extintor de garantía</button>`;
-            }
-            if (prestamoActivo) {
-                botonesAccion += `<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Préstamo</button>`;
-            }
-            if (garantiaActiva) {
-                botonesAccion += `<button class="btn btn-success" onclick="finalizarGarantia(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Garantía</button>`;
-            }
-            botonesAccion += `<button class="btn" style="background:#7c3aed;color:white;" onclick="abrirEditor(${currentItemIndex})"><i class="fas fa-edit"></i> Editar registro</button>`;
+        let movimientoHTML = '';
+        if (prestamoActivo) {
+            const tipoTexto = prestamoActivo.tipo === 'prestamo_unidad' ? 'Préstamo a Ubicación/Unidad' : 'Préstamo Interno';
+            movimientoHTML += `
+                <div class="modal-section" style="background:#fefce8;border:1px solid #fef08a;padding:14px;border-radius:12px;margin-top:8px;">
+                    <div class="modal-section-title" style="color:#854d0e;"><i class="fas fa-exchange-alt"></i> Préstamo Activo</div>
+                    <div class="modal-row"><label>Tipo:</label><value><strong>${tipoTexto}</strong></value></div>
+                    ${prestamoActivo.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(prestamoActivo.personal)}</strong></value></div>` : ''}
+                    ${prestamoActivo.motivo ? `<div class="modal-row"><label>Motivo:</label><value><strong>${limpiar(prestamoActivo.motivo)}</strong></value></div>` : ''}
+                    ${prestamoActivo.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(prestamoActivo.reemplazo)}</strong></value></div>` : ''}
+                    ${prestamoActivo.responsable_destino ? `<div class="modal-row"><label>Responsable destino:</label><value><strong>${limpiar(prestamoActivo.responsable_destino)}</strong></value></div>` : ''}
+                    ${prestamoActivo.ubicacion_destino ? `<div class="modal-row"><label>Ubicación destino:</label><value><strong>${limpiar(prestamoActivo.ubicacion_destino)}</strong></value></div>` : ''}
+                    <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(prestamoActivo.fecha)}</value></div>
+                </div>`;
         }
+        if (garantiaActiva) {
+            movimientoHTML += `
+                <div class="modal-section" style="background:#dbeafe;border:1px solid #93c5fd;padding:14px;border-radius:12px;margin-top:8px;">
+                    <div class="modal-section-title" style="color:#1e40af;"><i class="fas fa-tools"></i> Garantía Activa</div>
+                    ${garantiaActiva.personal ? `<div class="modal-row"><label>Personal a cargo:</label><value><strong>${limpiar(garantiaActiva.personal)}</strong></value></div>` : ''}
+                    ${garantiaActiva.reemplazo ? `<div class="modal-row"><label>Extintor reemplazo:</label><value><strong>${limpiar(garantiaActiva.reemplazo)}</strong></value></div>` : ''}
+                    <div class="modal-row"><label>Fecha de Registro:</label><value>${limpiar(garantiaActiva.fecha)}</value></div>
+                </div>`;
+        }
+
+        modalBody.innerHTML = `
+            <div class="modal-section"><div class="modal-section-title"><i class="fas fa-info-circle"></i> Información General</div>
+                <div class="modal-row"><label>N Extintor:</label><value><strong>${limpiar(item["N"])}</strong></value></div>
+                <div class="modal-row"><label>N Serie Actual:</label><value>${limpiar(item["N SERIE ACTUAL"])}</value></div>
+                <div class="modal-row"><label>Tipo:</label><value>${limpiar(item["TIPO"])}</value></div>
+                <div class="modal-row"><label>Capacidad:</label><value>${limpiar(item["CAP."])}</value></div>
+            </div>
+            <div class="modal-section"><div class="modal-section-title"><i class="fas fa-map-pin"></i> Ubicación</div>
+                <div class="modal-row"><label>Responsable:</label><value>${limpiar(item["AREA RESPONSABLE"])}</value></div>
+                <div class="modal-row"><label>Ubicación asignada:</label><value>${ubicacionAsignada}</value></div>
+                <div class="modal-row"><label>Ubicación actual:</label><value>${ubicacionActual}</value></div>
+            </div>
+            <div class="modal-section"><div class="modal-section-title"><i class="fas fa-tag"></i> Condición y Estado</div>
+                <div class="modal-row"><label>Condición:</label><value><span class="badge ${getBadgeClass(condicion)}">${condicion}</span></value></div>
+                ${isAdmin ? `<div class="modal-row"><label>Estado:</label><value>${estado ? `<span class="badge ${getEstadoBadgeClass(estado)}">${estado}</span>` : ""}</value></div>` : ''}
+                ${evidenciaHTML}
+                <div class="modal-row"><label>Vencimiento PH:</label><value>${formatMonthYear(item["ph_vencimiento"])}</value></div>
+                <div class="modal-row"><label>Vencimiento recarga:</label><value>${formatMonthYear(item["F. VENC."])}</value></div>
+${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<div class="modal-row"><label>Próxima recarga:</label><value><strong style="color:#0ea5e9;">${formatMonthYear(item["proxima_recarga"])}</strong></value></div>` : ''}
+            </div>
+            ${movimientoHTML}`;
+
+        let botonesAccion = '';
+        if (!isAdmin) {
+            botonesAccion += `<button class="btn btn-primary" style="background:#059669;color:white;" onclick="abrirFormularioObservacion(${currentItemIndex})"><i class="fas fa-pen"></i> Registrar Observación</button>`;
+        }
+        const esBaja = (item["CONDICION"] === "Baja");
+
+        if (isAdmin) {
+            if (esBaja) {
+                botonesAccion += `<button class="btn btn-success" onclick="abrirNuevoExtintor()"><i class="fas fa-plus"></i> Registrar nuevo extintor</button>`;
+            } else {
+                if (!prestamoActivo) {
+                    botonesAccion += `<button class="btn" style="background:#dc2626;color:white;" onclick="openLoanForm(${currentItemIndex})"><i class="fas fa-handshake"></i> Préstamo</button>`;
+                }
+                if (!garantiaActiva) {
+                    botonesAccion += `<button class="btn btn-garantia" onclick="openLoanFormGarantia(${currentItemIndex})"><i class="fas fa-tools"></i> Extintor de garantía</button>`;
+                }
+                if (prestamoActivo) {
+                    botonesAccion += `<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Préstamo</button>`;
+                }
+                if (garantiaActiva) {
+                    botonesAccion += `<button class="btn btn-success" onclick="finalizarGarantia(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Garantía</button>`;
+                }
+                botonesAccion += `<button class="btn" style="background:#7c3aed;color:white;" onclick="abrirEditor(${currentItemIndex})"><i class="fas fa-edit"></i> Editar registro</button>`;
+            }
+        }
+        botonesAccion += `<button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>`;
+        modalActions.innerHTML = botonesAccion;
+        detailModal.classList.add('active');
     }
-    botonesAccion += `<button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>`;
-    modalActions.innerHTML = botonesAccion;
-    detailModal.classList.add('active');
-}
     function closeModal() { detailModal.classList.remove('active'); }
 
     // ============================================================
@@ -1739,13 +2010,13 @@ async function eliminarObservacion(index) {
         document.getElementById('personal-cambio').value = '';
         document.getElementById('extintor-reemplazo').value = '';
         document.getElementById('motivo-select').value = 'Usado';
+        document.getElementById('proxima-recarga').value = '';
         document.getElementById('garantia-personal').value = '';
         document.getElementById('garantia-reemplazo').value = '';
-        document.getElementById('unidad-area').value = 'Operaciones Agrícolas';
-        document.getElementById('unidad-area-otro').value = '';
-        document.getElementById('unidad-area-otro').style.display = 'none';
+        document.getElementById('unidad-area').value = '';
         document.getElementById('unidad-responsable').value = '';
         document.getElementById('unidad-asignada').value = '';
+        if (unidadAreaAutocomplete) unidadAreaAutocomplete.refrescar();
         modoGarantiaForzado = false;
         document.getElementById('tipo-prestamo-wrapper').style.display = 'block';
         document.getElementById('tipo-prestamo-fijo').style.display = 'none';
@@ -1761,11 +2032,10 @@ async function eliminarObservacion(index) {
         document.getElementById('motivo-select').value = 'Usado';
         document.getElementById('garantia-personal').value = '';
         document.getElementById('garantia-reemplazo').value = '';
-        document.getElementById('unidad-area').value = 'Operaciones Agrícolas';
-        document.getElementById('unidad-area-otro').value = '';
-        document.getElementById('unidad-area-otro').style.display = 'none';
+        document.getElementById('unidad-area').value = '';
         document.getElementById('unidad-responsable').value = '';
         document.getElementById('unidad-asignada').value = '';
+        if (unidadAreaAutocomplete) unidadAreaAutocomplete.refrescar();
         modoGarantiaForzado = true;
         document.getElementById('tipo-prestamo-wrapper').style.display = 'none';
         document.getElementById('tipo-prestamo-fijo').style.display = 'block';
@@ -1791,12 +2061,6 @@ async function eliminarObservacion(index) {
         document.getElementById('campos-garantia').style.display = tipo === 'garantia' ? 'block' : 'none';
         document.getElementById('campos-unidad').style.display = tipo === 'unidad' ? 'block' : 'none';
     }
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('unidad-area').addEventListener('change', function() {
-            const otro = document.getElementById('unidad-area-otro');
-            if (this.value === 'Otro') { otro.style.display = 'block'; } else { otro.style.display = 'none'; }
-        });
-    });
 
     async function guardarPrestamo() {
         const tipo = document.getElementById('tipo-prestamo').value;
@@ -1805,14 +2069,23 @@ async function eliminarObservacion(index) {
         else if (tipo === 'unidad') await guardarPrestamoUnidad();
     }
 
-async function guardarPrestamoInterno() {
+    async function guardarPrestamoInterno() {
     const personal = document.getElementById('personal-cambio').value.trim();
     const reemplazo = document.getElementById('extintor-reemplazo').value.trim();
     const motivo = document.getElementById('motivo-select').value;
+    const proximaRecarga = document.getElementById('proxima-recarga').value.trim();
     
     if (!personal || !reemplazo) { 
         await showGenericModal('Por favor complete todos los campos.', 'Aviso'); 
         return; 
+    }
+    if (!proximaRecarga) {
+        await showGenericModal('Por favor ingrese la próxima fecha de recarga (MM/AAAA).', 'Aviso');
+        return;
+    }
+    if (!getMonthYear(proximaRecarga)) {
+        await showGenericModal('Formato de fecha inválido. Use MM/AAAA (ej. 03/2028).', 'Aviso');
+        return;
     }
     
     const itemA = misDatos[currentItemIndex];
@@ -1829,7 +2102,6 @@ async function guardarPrestamoInterno() {
         return; 
     }
     
-    // Buscar el extintor de reemplazo
     const { data: itemBData, error: searchError } = await supabaseClient
         .from(TABLA_EXTINTORES)
         .select('*')
@@ -1843,14 +2115,16 @@ async function guardarPrestamoInterno() {
     
     const noB = String(itemBData["N"]);
     const responsableOriginalA = itemA["AREA RESPONSABLE"] || "Sin responsable";
+    const fechaOriginal = itemA["F. VENC."] || "-";
     
-    // Actualizar en la base de datos
+    // Guardar proxima_recarga en el extintor A (el que sale a mantenimiento)
     await supabaseClient
         .from(TABLA_EXTINTORES)
         .update({ 
             ubicacion_prestamo: 'Mantenimiento / Almacén SST', 
             CONDICION: motivo, 
-            ESTADO: 'Almacén SST' 
+            ESTADO: 'Almacén SST',
+            proxima_recarga: proximaRecarga
         })
         .eq('N', noA);
     
@@ -1862,7 +2136,6 @@ async function guardarPrestamoInterno() {
         })
         .eq('N', noB);
     
-    // Registrar movimientos
     await supabaseClient.from(TABLA_MOVIMIENTOS).insert([
         { 
             n_extintor: noA, 
@@ -1872,7 +2145,7 @@ async function guardarPrestamoInterno() {
             reemplazo: noB, 
             responsable_destino: "SST", 
             ubicacion_destino: 'Mantenimiento / Almacén SST', 
-            detalle: `Extintor ${noA} reportado como ${motivo} - enviado a almacén. Reemplazado por ${noB}`, 
+            detalle: `Extintor ${noA} reportado como ${motivo} - Vencía: ${fechaOriginal} → Próxima recarga: ${proximaRecarga} - Reemplazado por ${noB}`, 
             activo: true 
         },
         { 
@@ -1888,13 +2161,20 @@ async function guardarPrestamoInterno() {
         }
     ]);
     
-    // ACTUALIZAR LOCALMENTE (sin recargar todo)
+    // Guardar también en observaciones para trazabilidad
+    await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update({ 
+            observaciones: (itemA["observaciones"] || '') + `\n[Préstamo Interno ${new Date().toLocaleDateString('es-ES')}] ${motivo} - Vencía: ${fechaOriginal} → Próxima recarga: ${proximaRecarga}` 
+        })
+        .eq('N', noA);
+    
     await actualizarUnExtintor(noA);
     await actualizarUnExtintor(noB);
-    await cargarMovimientosActivos(); // Recargar solo movimientos activos
+    await cargarMovimientosActivos();
     
     historialCompleto.push(
-        { fecha: new Date().toLocaleString('es-ES'), no: noA, tipo: 'Préstamo Interno (Salida)', personal: personal, detalle: `Extintor ${noA} reportado como ${motivo} - Reemplazado por ${noB}` },
+        { fecha: new Date().toLocaleString('es-ES'), no: noA, tipo: 'Préstamo Interno (Salida)', personal: personal, detalle: `Extintor ${noA} reportado como ${motivo} - Vencía: ${fechaOriginal} → Próxima recarga: ${proximaRecarga} - Reemplazado por ${noB}` },
         { fecha: new Date().toLocaleString('es-ES'), no: noB, tipo: 'Préstamo Interno (Entrada)', personal: personal, detalle: `Extintor ${noB} (STOCK) enviado a ${responsableOriginalA} - Reemplaza a ${noA}` }
     );
     
@@ -1904,110 +2184,204 @@ async function guardarPrestamoInterno() {
 }
 
     async function guardarPrestamoGarantia() {
-        const personal = document.getElementById('garantia-personal').value.trim();
-        const reemplazo = document.getElementById('garantia-reemplazo').value.trim();
-        if (!personal || !reemplazo) { await showGenericModal('Por favor complete todos los campos.', 'Aviso'); return; }
-        const item = misDatos[currentItemIndex];
-        const no = String(item["N"]);
-        if (movimientosGarantiaActivos[no]) { await showGenericModal('Este extintor ya tiene una garantía activa.', 'Error'); return; }
-        const detalle = `Garantía - Personal: ${personal} - Extintor reemplazo: ${reemplazo}`;
-        const { error } = await supabaseClient.from(TABLA_MOVIMIENTOS).insert({ n_extintor: no, tipo: 'garantia', personal: personal, reemplazo: reemplazo, detalle: detalle, activo: true });
-        if (error) { console.error(error); await showGenericModal('Error al registrar la garantía: ' + error.message, 'Error'); return; }
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: no, tipo: 'Garantía', personal: personal, detalle: detalle });
-        await showGenericModal('Garantía registrada correctamente.', 'Éxito');
-        closeLoanModal();
-        await refreshData();
-        await cargarDatosSecundarios();
-        applyFilters();
+    const personal = document.getElementById('garantia-personal').value.trim();
+    const reemplazo = document.getElementById('garantia-reemplazo').value.trim();
+    if (!personal || !reemplazo) { 
+        await showGenericModal('Por favor complete todos los campos.', 'Aviso'); 
+        return; 
     }
-
-    async function guardarPrestamoUnidad() {
-        let area = document.getElementById('unidad-area').value;
-        if (area === 'Otro') area = document.getElementById('unidad-area-otro').value.trim() || 'Otro';
-        const responsable = document.getElementById('unidad-responsable').value.trim();
-        const unidad = document.getElementById('unidad-asignada').value.trim();
-        if (!area || !responsable || !unidad) { await showGenericModal('Por favor complete todos los campos (Área, Responsable y Unidad asignada).', 'Aviso'); return; }
-        const item = misDatos[currentItemIndex];
-        const no = String(item["N"]);
-        const estadoActual = item["ESTADO"] || "";
-        if (estadoActual === "Prestado" || estadoActual === "Almacén SST") { await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error'); return; }
-        const update = await supabaseClient.from(TABLA_EXTINTORES).update({ ubicacion_prestamo: unidad, ESTADO: 'Prestado' }).eq('N', no);
-        if (update.error) { console.error('Error actualizando extintor:', update.error); await showGenericModal('Error al actualizar el extintor: ' + update.error.message, 'Error'); return; }
-        const detalle = `Préstamo a unidad - Área: ${area} - Responsable: ${responsable} - Unidad: ${unidad}`;
-        const { error } = await supabaseClient.from(TABLA_MOVIMIENTOS).insert({ n_extintor: no, tipo: 'prestamo_unidad', personal: responsable, responsable_destino: area, ubicacion_destino: unidad, detalle: detalle, activo: true });
-        if (error) { console.error('Error registrando movimiento:', error); await showGenericModal('Error al registrar el movimiento: ' + error.message, 'Error'); return; }
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: no, tipo: 'Préstamo a unidad', personal: responsable, detalle: detalle });
-        await showGenericModal('Préstamo a unidad registrado correctamente.', 'Éxito');
-        closeLoanModal();
-        await refreshData();
-        await cargarDatosSecundarios();
-        applyFilters();
-    }
-
-    // ============================================================
-    //  FINALIZAR GARANTÍA Y PRÉSTAMO - CORREGIDO
-    // ============================================================
-   async function finalizarGarantia(itemIndex) {
-    const item = misDatos[itemIndex];
+    const item = misDatos[currentItemIndex];
     const no = String(item["N"]);
     
-    if (!movimientosGarantiaActivos[no]) { 
-        await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso'); 
+    if (movimientosGarantiaActivos[no]) { 
+        await showGenericModal('Este extintor ya tiene una garantía activa.', 'Error'); 
         return; 
     }
     
-    // Calcular nueva fecha
-    const now = new Date();
-    const nuevoAnio = now.getFullYear() + 1;
-    const nuevoMes = now.getMonth() + 1;
-    let mesFinal = nuevoMes, anioFinal = nuevoAnio;
-    if (mesFinal > 12) { mesFinal = mesFinal - 12; anioFinal = anioFinal + 1; }
-    const nuevaFecha = `${String(mesFinal).padStart(2, '0')}/${anioFinal}`;
+    const detalle = `Garantía - Personal: ${personal} - Extintor reemplazo: ${reemplazo}`;
+    const { data: movInsertado, error } = await supabaseClient
+        .from(TABLA_MOVIMIENTOS)
+        .insert({ 
+            n_extintor: no, 
+            tipo: 'garantia', 
+            personal: personal, 
+            reemplazo: reemplazo, 
+            detalle: detalle, 
+            activo: true 
+        })
+        .select()
+        .single();
     
-    // Actualizar en la base de datos
-    const updateExtintor = await supabaseClient
-        .from(TABLA_EXTINTORES)
-        .update({ "F. VENC.": nuevaFecha, "ph_vencimiento": nuevaFecha })
-        .eq('N', no);
-    
-    if (updateExtintor.error) {
-        console.error('Error actualizando fechas:', updateExtintor.error);
-        await showGenericModal('Error al actualizar las fechas: ' + updateExtintor.error.message, 'Error');
-        return;
+    if (error) { 
+        console.error(error); 
+        await showGenericModal('Error al registrar la garantía: ' + error.message, 'Error'); 
+        return; 
     }
     
-    const { error } = await supabaseClient
-        .from(TABLA_MOVIMIENTOS)
-        .update({ activo: false })
-        .eq('n_extintor', no)
-        .eq('tipo', 'garantia')
-        .eq('activo', true);
+    // Actualizar movimientos activos en memoria (sin consultar Supabase)
+    const fecha = new Date().toLocaleString('es-ES');
+    movimientosGarantiaActivos[no] = {
+        reemplazo: reemplazo,
+        personal: personal,
+        fecha: fecha
+    };
+    movimientosActivos[no] = movimientosGarantiaActivos[no];
     
-    if (error) {
-        console.error(error);
-        await showGenericModal('Error al finalizar la garantía: ' + error.message, 'Error');
-        return;
+    // Agregar al historial local (sin recargar todo)
+    historialCompleto.unshift({
+        id: movInsertado ? movInsertado.id : undefined,
+        fecha: fecha,
+        no: no,
+        tipo: 'garantia',
+        personal: personal,
+        detalle: detalle
+    });
+    
+    await showGenericModal('Garantía registrada correctamente.', 'Éxito');
+    closeLoanModal();
+    applyFilters();
+}
+
+    async function guardarPrestamoUnidad() {
+    const area = document.getElementById('unidad-area').value.trim();
+    const responsable = document.getElementById('unidad-responsable').value.trim();
+    const unidad = document.getElementById('unidad-asignada').value.trim();
+    if (!area || !responsable || !unidad) { 
+        await showGenericModal('Por favor complete todos los campos (Área, Responsable y Ubicación/unidad asignada).', 'Aviso'); 
+        return; 
+    }
+    const item = misDatos[currentItemIndex];
+    const no = String(item["N"]);
+    const estadoActual = item["ESTADO"] || "";
+    if (estadoActual === "Prestado" || estadoActual === "Almacén SST") { 
+        await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error'); 
+        return; 
+    }
+    
+    const update = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update({ ubicacion_prestamo: unidad, ESTADO: 'Prestado' })
+        .eq('N', no);
+    
+    if (update.error) { 
+        console.error('Error actualizando extintor:', update.error); 
+        await showGenericModal('Error al actualizar el extintor: ' + update.error.message, 'Error'); 
+        return; 
+    }
+    
+    const detalle = `Préstamo a unidad - Área: ${area} - Responsable: ${responsable} - Unidad: ${unidad}`;
+    const { data: movInsertado, error } = await supabaseClient
+        .from(TABLA_MOVIMIENTOS)
+        .insert({ 
+            n_extintor: no, 
+            tipo: 'prestamo_unidad', 
+            personal: responsable, 
+            responsable_destino: area, 
+            ubicacion_destino: unidad, 
+            detalle: detalle, 
+            activo: true 
+        })
+        .select()
+        .single();
+    
+    if (error) { 
+        console.error('Error registrando movimiento:', error); 
+        await showGenericModal('Error al registrar el movimiento: ' + error.message, 'Error'); 
+        return; 
     }
     
     // ACTUALIZAR LOCALMENTE (sin recargar todo)
     await actualizarUnExtintor(no);
-    delete movimientosGarantiaActivos[no];
-    delete movimientosActivos[no];
     
-    historialCompleto.push({
-        fecha: new Date().toLocaleString('es-ES'),
+    // Actualizar movimientos activos en memoria (sin consultar Supabase)
+    const fecha = new Date().toLocaleString('es-ES');
+    movimientosPrestamoActivos[no] = {
+        tipo: 'prestamo_unidad',
+        personal: responsable,
+        motivo: null,
+        reemplazo: null,
+        responsable_destino: area,
+        ubicacion_destino: unidad,
+        fecha: fecha
+    };
+    movimientosActivos[no] = movimientosPrestamoActivos[no];
+    
+    // Agregar al historial local (sin recargar todo)
+    historialCompleto.unshift({
+        id: movInsertado ? movInsertado.id : undefined,
+        fecha: fecha,
         no: no,
-        tipo: 'Garantía finalizada',
-        personal: 'Sistema',
-        detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}`
+        tipo: 'prestamo_unidad',
+        personal: responsable,
+        detalle: detalle
     });
     
-    await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha}`, 'Éxito');
-    closeModal();
+    await showGenericModal('Préstamo a unidad registrado correctamente.', 'Éxito');
+    closeLoanModal();
     applyFilters();
 }
 
- async function finalizarPrestamo(itemIndex) {
+    // ============================================================
+    //  FINALIZAR GARANTÍA Y PRÉSTAMO
+    // ============================================================
+    async function finalizarGarantia(itemIndex) {
+        const item = misDatos[itemIndex];
+        const no = String(item["N"]);
+        
+        if (!movimientosGarantiaActivos[no]) { 
+            await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso'); 
+            return; 
+        }
+        
+        const now = new Date();
+        const nuevoAnio = now.getFullYear() + 1;
+        const nuevoMes = now.getMonth() + 1;
+        let mesFinal = nuevoMes, anioFinal = nuevoAnio;
+        if (mesFinal > 12) { mesFinal = mesFinal - 12; anioFinal = anioFinal + 1; }
+        const nuevaFecha = `${String(mesFinal).padStart(2, '0')}/${anioFinal}`;
+        
+        const updateExtintor = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .update({ "F. VENC.": nuevaFecha, "ph_vencimiento": nuevaFecha })
+            .eq('N', no);
+        
+        if (updateExtintor.error) {
+            console.error('Error actualizando fechas:', updateExtintor.error);
+            await showGenericModal('Error al actualizar las fechas: ' + updateExtintor.error.message, 'Error');
+            return;
+        }
+        
+        const { error } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .update({ activo: false })
+            .eq('n_extintor', no)
+            .eq('tipo', 'garantia')
+            .eq('activo', true);
+        
+        if (error) {
+            console.error(error);
+            await showGenericModal('Error al finalizar la garantía: ' + error.message, 'Error');
+            return;
+        }
+        
+        await actualizarUnExtintor(no);
+        delete movimientosGarantiaActivos[no];
+        delete movimientosActivos[no];
+        
+        historialCompleto.push({
+            fecha: new Date().toLocaleString('es-ES'),
+            no: no,
+            tipo: 'Garantía finalizada',
+            personal: 'Sistema',
+            detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}`
+        });
+        
+        await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha}`, 'Éxito');
+        closeModal();
+        applyFilters();
+    }
+
+    async function finalizarPrestamo(itemIndex) {
     const item = misDatos[itemIndex];
     const no = String(item["N"]);
     const prestamo = movimientosPrestamoActivos[no];
@@ -2017,13 +2391,34 @@ async function guardarPrestamoInterno() {
         return; 
     }
     
+    // Solo preguntar la fecha real si es préstamo interno (no préstamo a unidad)
+    let nuevaFechaReal = null;
+    const esPrestamoInterno = (prestamo.tipo === 'prestamo_interno');
+    
+    if (esPrestamoInterno) {
+        const fechaIngresada = await showPromptModal(
+            'Ingrese la fecha REAL de recarga (MM/AAAA). Se guardará como nuevo vencimiento.',
+            'Fecha real de recarga',
+            item["F. VENC."] || ''
+        );
+        if (fechaIngresada === null) return; // usuario canceló
+        const fechaLimpia = fechaIngresada.trim();
+        if (!fechaLimpia) {
+            await showGenericModal('Debe ingresar una fecha.', 'Aviso');
+            return;
+        }
+        if (!getMonthYear(fechaLimpia)) {
+            await showGenericModal('Formato inválido. Use MM/AAAA (ej. 03/2028).', 'Aviso');
+            return;
+        }
+        nuevaFechaReal = fechaLimpia;
+    }
+    
     let noRelacionado = prestamo.reemplazo || null;
     const numerosAFinalizar = [no];
     if (noRelacionado) numerosAFinalizar.push(noRelacionado);
 
-    // PASO 1: Limpiar en la base de datos
     for (const num of numerosAFinalizar) {
-        // Desactivar movimientos
         const { error: movError } = await supabaseClient
             .from(TABLA_MOVIMIENTOS)
             .update({ activo: false })
@@ -2032,48 +2427,50 @@ async function guardarPrestamoInterno() {
             .eq('activo', true);
         if (movError) console.error(`Error desactivando préstamo para ${num}:`, movError);
 
-        // Limpiar ubicacion_prestamo y ESTADO
+        const updateData = {
+            ubicacion_prestamo: null,
+            ESTADO: null
+        };
+        // Solo al extintor principal (no al reemplazo) se le actualiza la fecha
+        if (num === no) {
+            updateData.proxima_recarga = null;
+            if (nuevaFechaReal) {
+                updateData["F. VENC."] = nuevaFechaReal;
+            }
+        }
+        
         const { error: updateError } = await supabaseClient
             .from(TABLA_EXTINTORES)
-            .update({
-                ubicacion_prestamo: null,
-                ESTADO: null
-            })
+            .update(updateData)
             .eq('N', num);
         if (updateError) console.error(`Error actualizando extintor ${num}:`, updateError);
     }
 
-    // PASO 2: ACTUALIZAR LOCALMENTE CADA EXTINTOR (sin recargar todo)
     for (const num of numerosAFinalizar) {
-        await actualizarUnExtintor(num); // Solo actualiza este extintor
+        await actualizarUnExtintor(num);
     }
 
-    // PASO 3: ACTUALIZAR MOVIMIENTOS ACTIVOS LOCALMENTE
     for (const num of numerosAFinalizar) {
         delete movimientosPrestamoActivos[num];
         delete movimientosActivos[num];
     }
 
-    // PASO 4: Registrar retorno en el historial (solo en memoria)
     historialCompleto.push({
         fecha: new Date().toLocaleString('es-ES'),
         no: no,
         tipo: 'Retorno',
         personal: 'Sistema',
-        detalle: `Préstamo finalizado${noRelacionado ? ` - Extintor ${noRelacionado}` : ''}`
+        detalle: `Préstamo finalizado${nuevaFechaReal ? ` - Nuevo vencimiento: ${nuevaFechaReal}` : ''}${noRelacionado ? ` - Extintor ${noRelacionado}` : ''}`
     });
 
-    await showGenericModal('Préstamo finalizado correctamente.', 'Éxito');
+    await showGenericModal('Préstamo finalizado correctamente.' + (nuevaFechaReal ? ` Nuevo vencimiento: ${nuevaFechaReal}` : ''), 'Éxito');
     closeModal();
-    
-    // PASO 5: Refrescar la tabla (sin recargar datos)
     applyFilters();
-}
+    }
 
     // ============================================================
     //  EDITOR, BAJA, NUEVO REEMPLAZO
     // ============================================================
-    // Nombres de campos para mostrar en el editor
     const nombresMostrar = {
         'N': 'Número de Extintor',
         'N SERIE ACTUAL': 'Número de Serie Actual',
@@ -2097,8 +2494,6 @@ async function guardarPrestamoInterno() {
         if (!isAdmin) return;
         currentItemIndex = itemIndex;
         const item = misDatos[currentItemIndex];
-        const condicion = getCondicionItem(item);
-        const estado = item["ESTADO"] || "";
         const esBaja = (item["CONDICION"] === "Baja");
 
         if (esBaja) {
@@ -2177,58 +2572,55 @@ async function guardarPrestamoInterno() {
         document.getElementById('editor-evidencia-container').innerHTML = '';
     }
 
-async function guardarEdicion() {
-    if (!isAdmin || currentItemIndex === null || editorModoCreacion) return;
-    
-    const item = misDatos[currentItemIndex];
-    const cambios = {};
-    
-    document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
-        const clave = campo.dataset.key;
-        if (clave) cambios[clave] = campo.value;
-    });
-    
-    const numeroAnterior = String(item['N']);
-    const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
-    
-    if (!numeroNuevo) { 
-        await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso'); 
-        return; 
+    async function guardarEdicion() {
+        if (!isAdmin || currentItemIndex === null || editorModoCreacion) return;
+        
+        const item = misDatos[currentItemIndex];
+        const cambios = {};
+        
+        document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
+            const clave = campo.dataset.key;
+            if (clave) cambios[clave] = campo.value;
+        });
+        
+        const numeroAnterior = String(item['N']);
+        const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
+        
+        if (!numeroNuevo) { 
+            await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso'); 
+            return; 
+        }
+        
+        const { error } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .update(cambios)
+            .eq('N', numeroAnterior);
+        
+        if (error) {
+            console.error(error);
+            await showGenericModal('No se pudieron guardar los cambios: ' + error.message, 'Error');
+            return;
+        }
+        
+        if (numeroNuevo !== numeroAnterior) {
+            await supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .update({ n_extintor: numeroNuevo })
+                .eq('n_extintor', numeroAnterior);
+            await supabaseClient
+                .from(TABLA_OBSERVACIONES)
+                .update({ n_extintor: numeroNuevo })
+                .eq('n_extintor', numeroAnterior);
+        }
+        
+        await actualizarUnExtintor(numeroNuevo);
+        
+        await showGenericModal('Registro actualizado correctamente.', 'Éxito');
+        closeEditorModal();
+        
+        poblarResponsables();
+        applyFilters();
     }
-    
-    // Guardar en la base de datos
-    const { error } = await supabaseClient
-        .from(TABLA_EXTINTORES)
-        .update(cambios)
-        .eq('N', numeroAnterior);
-    
-    if (error) {
-        console.error(error);
-        await showGenericModal('No se pudieron guardar los cambios: ' + error.message, 'Error');
-        return;
-    }
-    
-    if (numeroNuevo !== numeroAnterior) {
-        await supabaseClient
-            .from(TABLA_MOVIMIENTOS)
-            .update({ n_extintor: numeroNuevo })
-            .eq('n_extintor', numeroAnterior);
-        await supabaseClient
-            .from(TABLA_OBSERVACIONES)
-            .update({ n_extintor: numeroNuevo })
-            .eq('n_extintor', numeroAnterior);
-    }
-    
-    // ACTUALIZAR LOCALMENTE (sin recargar todo)
-    await actualizarUnExtintor(numeroNuevo);
-    
-    await showGenericModal('Registro actualizado correctamente.', 'Éxito');
-    closeEditorModal();
-    
-    // Actualizar lista de responsables sin recargar todo
-    poblarResponsables();
-    applyFilters();
-}
 
     function abrirNuevoExtintor() {
         if (!isAdmin) return;
@@ -2289,7 +2681,7 @@ async function guardarEdicion() {
             nuevo[clave] = valor;
         });
         if (!numeroNuevo) { await showGenericModal('El número del extintor es obligatorio.', 'Aviso'); return; }
-        const { data: existente, error: checkErr } = await supabaseClient.from(TABLA_EXTINTORES).select('N').eq('N', numeroNuevo).maybeSingle();
+        const { data: existente } = await supabaseClient.from(TABLA_EXTINTORES).select('N').eq('N', numeroNuevo).maybeSingle();
         if (existente) { await showGenericModal('Ya existe un extintor con ese número.', 'Error'); return; }
         nuevo['CONDICION'] = 'Vigente';
         nuevo['ESTADO'] = null;
@@ -2348,7 +2740,7 @@ async function guardarEdicion() {
         if (archivo) {
             const fileExt = archivo.name.split('.').pop();
             const fileName = `baja_${no}_${Date.now()}.${fileExt}`;
-            const { data, error } = await supabaseClient.storage.from(BUCKET_NAME).upload(`bajas/${fileName}`, archivo, { cacheControl: '3600', upsert: false });
+            const { error } = await supabaseClient.storage.from(BUCKET_NAME).upload(`bajas/${fileName}`, archivo, { cacheControl: '3600', upsert: false });
             if (error) { console.error('Error subiendo archivo:', error); await showGenericModal('Error al subir la evidencia: ' + error.message, 'Error'); return; }
             const { publicURL } = supabaseClient.storage.from(BUCKET_NAME).getPublicUrl(`bajas/${fileName}`);
             evidenciaUrl = publicURL;
@@ -2405,7 +2797,7 @@ async function guardarEdicion() {
             nuevo[clave] = valor;
         });
         if (!numeroNuevo) { await showGenericModal('El número del nuevo extintor es obligatorio.', 'Aviso'); return; }
-        const { data: existente, error: checkErr } = await supabaseClient.from(TABLA_EXTINTORES).select('N').eq('N', numeroNuevo).maybeSingle();
+        const { data: existente } = await supabaseClient.from(TABLA_EXTINTORES).select('N').eq('N', numeroNuevo).maybeSingle();
         if (existente) { await showGenericModal('Ya existe un extintor con ese número.', 'Error'); return; }
         nuevo['CONDICION'] = 'Vigente';
         nuevo['ESTADO'] = 'Prestado';
@@ -2483,62 +2875,59 @@ async function guardarEdicion() {
     // ============================================================
     //  INICIO
     // ============================================================
-async function iniciarApp() {
-    // Cargar extintores
-    const { data, error } = await supabaseClient
-        .from(TABLA_EXTINTORES)
-        .select('*')
-        .order('N');
-    
-    if (error) {
-        tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#ef4444;">Error de Supabase: ${error.message}</td></tr>`;
-        return;
+    async function iniciarApp() {
+        const { data, error } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .select('*')
+            .order('N');
+        
+        if (error) {
+            tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#ef4444;">Error de Supabase: ${error.message}</td></tr>`;
+            return;
+        }
+        
+        if (!data || data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#94a3b8;">La tabla de Supabase está vacía o no tiene registros</td></tr>`;
+            return;
+        }
+        
+        misDatos = [...data].sort(compararNumeros);
+        
+        await cargarMovimientosActivos();
+        
+        const { data: obsData } = await supabaseClient
+            .from(TABLA_OBSERVACIONES)
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100);
+        
+        observacionesPublicas = (obsData || []).map(o => ({ 
+            id: o.id, 
+            no: o.n_extintor, 
+            texto: o.texto, 
+            fecha: new Date(o.created_at).toLocaleDateString('es-ES') 
+        }));
+        
+        const { data: histData } = await supabaseClient
+            .from(TABLA_MOVIMIENTOS)
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(200);
+        
+        historialCompleto = (histData || []).map(mov => ({
+            id: mov.id,
+            fecha: new Date(mov.created_at).toLocaleString('es-ES'),
+            no: mov.n_extintor,
+            tipo: mov.tipo,
+            personal: mov.personal || '-',
+            detalle: mov.detalle || ''
+        }));
+        
+        poblarResponsables();
+        inicializarAutocompletes();
+        renderCalendar();
+        applyFilters();
     }
-    
-    if (!data || data.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#94a3b8;">La tabla de Supabase está vacía o no tiene registros</td></tr>`;
-        return;
-    }
-    
-    misDatos = [...data].sort(compararNumeros);
-    
-    // Cargar SOLO movimientos activos (NO todos)
-    await cargarMovimientosActivos();
-    
-    // Cargar observaciones (solo últimas 100)
-    const { data: obsData } = await supabaseClient
-        .from(TABLA_OBSERVACIONES)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-    
-    observacionesPublicas = (obsData || []).map(o => ({ 
-        id: o.id, 
-        no: o.n_extintor, 
-        texto: o.texto, 
-        fecha: new Date(o.created_at).toLocaleDateString('es-ES') 
-    }));
-    
-    // Cargar historial (solo últimos 200 movimientos)
-    const { data: histData } = await supabaseClient
-        .from(TABLA_MOVIMIENTOS)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200);
-    
-    historialCompleto = (histData || []).map(mov => ({
-        id: mov.id,
-        fecha: new Date(mov.created_at).toLocaleString('es-ES'),
-        no: mov.n_extintor,
-        tipo: mov.tipo,
-        personal: mov.personal || '-',
-        detalle: mov.detalle || ''
-    }));
-    
-    poblarResponsables();
-    renderCalendar();
-    applyFilters();
-}
 
     // Eventos para cerrar modales con clic fuera
     detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeModal(); });
@@ -2550,8 +2939,6 @@ async function iniciarApp() {
     document.getElementById('baja-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeBajaModal(); });
     document.getElementById('nuevo-reemplazo-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeNuevoReemplazoModal(); });
 
-    responsableFilter.addEventListener('input', applyFilters);
-    responsableFilter.addEventListener('change', applyFilters);
     condicionFilter.addEventListener('change', applyFilters);
     if (numeroFilter) numeroFilter.addEventListener('input', applyFilters);
 
