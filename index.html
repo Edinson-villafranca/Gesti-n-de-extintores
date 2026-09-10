@@ -2246,79 +2246,102 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     const area = document.getElementById('unidad-area').value.trim();
     const responsable = document.getElementById('unidad-responsable').value.trim();
     const unidad = document.getElementById('unidad-asignada').value.trim();
-    if (!area || !responsable || !unidad) { 
-        await showGenericModal('Por favor complete todos los campos (Área, Responsable y Ubicación/unidad asignada).', 'Aviso'); 
-        return; 
+    if (!area || !responsable || !unidad) {
+        await showGenericModal('Por favor complete todos los campos (Área, Responsable y Ubicación/unidad asignada).', 'Aviso');
+        return;
     }
+
     const item = misDatos[currentItemIndex];
     const no = String(item["N"]);
     const estadoActual = item["ESTADO"] || "";
-    if (estadoActual === "Prestado" || estadoActual === "Almacén SST") { 
-        await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error'); 
-        return; 
+    if (estadoActual === "Prestado" || estadoActual === "Almacén SST") {
+        await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error');
+        return;
     }
-    
-    const update = await supabaseClient
-        .from(TABLA_EXTINTORES)
-        .update({ ubicacion_prestamo: unidad, ESTADO: 'Prestado' })
-        .eq('N', no);
-    
-    if (update.error) { 
-        console.error('Error actualizando extintor:', update.error); 
-        await showGenericModal('Error al actualizar el extintor: ' + update.error.message, 'Error'); 
-        return; 
-    }
-    
-    const detalle = `Préstamo a unidad - Área: ${area} - Responsable: ${responsable} - Unidad: ${unidad}`;
-    const { data: movInsertado, error } = await supabaseClient
-        .from(TABLA_MOVIMIENTOS)
-        .insert({ 
-            n_extintor: no, 
-            tipo: 'prestamo_unidad', 
-            personal: responsable, 
-            responsable_destino: area, 
-            ubicacion_destino: unidad, 
-            detalle: detalle, 
-            activo: true 
-        })
-        .select()
-        .single();
-    
-    if (error) { 
-        console.error('Error registrando movimiento:', error); 
-        await showGenericModal('Error al registrar el movimiento: ' + error.message, 'Error'); 
-        return; 
-    }
-    
-    // ACTUALIZAR LOCALMENTE (sin recargar todo)
-    await actualizarUnExtintor(no);
-    
-    // Actualizar movimientos activos en memoria (sin consultar Supabase)
+
+    // Feedback visual en el botón
+    const btns = loanModal.querySelectorAll('.modal-actions .btn');
+    const saveBtn = btns[0];
+    const textoOriginal = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
     const fecha = new Date().toLocaleString('es-ES');
-    movimientosPrestamoActivos[no] = {
-        tipo: 'prestamo_unidad',
-        personal: responsable,
-        motivo: null,
-        reemplazo: null,
-        responsable_destino: area,
-        ubicacion_destino: unidad,
-        fecha: fecha
-    };
-    movimientosActivos[no] = movimientosPrestamoActivos[no];
-    
-    // Agregar al historial local (sin recargar todo)
-    historialCompleto.unshift({
-        id: movInsertado ? movInsertado.id : undefined,
-        fecha: fecha,
-        no: no,
-        tipo: 'prestamo_unidad',
-        personal: responsable,
-        detalle: detalle
-    });
-    
-    await showGenericModal('Préstamo a unidad registrado correctamente.', 'Éxito');
-    closeLoanModal();
-    applyFilters();
+    const ubicacionTexto = unidad;
+    const detalle = `Préstamo a unidad - Área: ${area} - Responsable: ${responsable} - Unidad: ${unidad}`;
+
+    try {
+        // 1) UPDATE del extintor y 2) INSERT del movimiento EN PARALELO
+        const [updateRes, insertRes] = await Promise.all([
+            supabaseClient
+                .from(TABLA_EXTINTORES)
+                .update({ ubicacion_prestamo: ubicacionTexto, ESTADO: 'Prestado' })
+                .eq('N', no),
+            supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .insert({
+                    n_extintor: no,
+                    tipo: 'prestamo_unidad',
+                    personal: responsable,
+                    responsable_destino: area,
+                    ubicacion_destino: unidad,
+                    detalle: detalle,
+                    activo: true
+                })
+                .select()
+                .single()
+        ]);
+
+        if (updateRes.error) throw new Error('Error al actualizar el extintor: ' + updateRes.error.message);
+        if (insertRes.error) throw new Error('Error al registrar el movimiento: ' + insertRes.error.message);
+
+        const movInsertado = insertRes.data;
+
+        // 3) Actualizar SOLO en memoria (sin SELECT de red)
+        const idx = misDatos.findIndex(it => String(it["N"]) === no);
+        if (idx !== -1) {
+            misDatos[idx] = {
+                ...misDatos[idx],
+                ubicacion_prestamo: ubicacionTexto,
+                ESTADO: 'Prestado'
+            };
+        }
+
+        // 4) Movimientos activos en memoria
+        movimientosPrestamoActivos[no] = {
+            tipo: 'prestamo_unidad',
+            personal: responsable,
+            motivo: null,
+            reemplazo: null,
+            responsable_destino: area,
+            ubicacion_destino: unidad,
+            fecha: fecha
+        };
+        movimientosActivos[no] = movimientosPrestamoActivos[no];
+
+        // 5) Historial en memoria (usar unshift porque el orden es descendente)
+        historialCompleto.unshift({
+            id: movInsertado ? movInsertado.id : undefined,
+            fecha: fecha,
+            no: no,
+            tipo: 'prestamo_unidad',
+            personal: responsable,
+            detalle: detalle
+        });
+
+        // 6) Cerrar modal y refrescar ANTES del aviso
+        closeLoanModal();
+        applyFilters();
+
+        await showGenericModal('Préstamo a unidad registrado correctamente.', 'Éxito');
+
+    } catch (err) {
+        console.error(err);
+        await showGenericModal(err.message || 'Error inesperado al registrar el préstamo.', 'Error');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = textoOriginal;
+    }
 }
 
     // ============================================================
@@ -2573,102 +2596,99 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     }
 
     async function guardarEdicion() {
-        if (!isAdmin || currentItemIndex === null || editorModoCreacion) return;
-        
-        const item = misDatos[currentItemIndex];
-        const cambios = {};
-        
-        document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
-            const clave = campo.dataset.key;
-            if (clave) cambios[clave] = campo.value;
-        });
-        
-        const numeroAnterior = String(item['N']);
-        const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
-        
-        if (!numeroNuevo) { 
-            await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso'); 
-            return; 
-        }
-        
+    if (!isAdmin || currentItemIndex === null || editorModoCreacion) return;
+
+    const item = misDatos[currentItemIndex];
+    const cambios = {};
+    const saveBtn = document.getElementById('editor-save-btn');
+
+    document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
+        const clave = campo.dataset.key;
+        if (clave) cambios[clave] = campo.value;
+    });
+
+    const numeroAnterior = String(item['N']);
+    const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
+
+    if (!numeroNuevo) {
+        await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso');
+        return;
+    }
+
+    // Feedback visual: deshabilitar botón
+    const textoOriginal = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+    try {
+        // 1) UPDATE principal (una sola llamada)
         const { error } = await supabaseClient
             .from(TABLA_EXTINTORES)
             .update(cambios)
             .eq('N', numeroAnterior);
-        
-        if (error) {
-            console.error(error);
-            await showGenericModal('No se pudieron guardar los cambios: ' + error.message, 'Error');
-            return;
-        }
-        
-        if (numeroNuevo !== numeroAnterior) {
-            await supabaseClient
-                .from(TABLA_MOVIMIENTOS)
-                .update({ n_extintor: numeroNuevo })
-                .eq('n_extintor', numeroAnterior);
-            await supabaseClient
-                .from(TABLA_OBSERVACIONES)
-                .update({ n_extintor: numeroNuevo })
-                .eq('n_extintor', numeroAnterior);
-        }
-        
-        await actualizarUnExtintor(numeroNuevo);
-        
-        await showGenericModal('Registro actualizado correctamente.', 'Éxito');
-        closeEditorModal();
-        
-        poblarResponsables();
-        applyFilters();
-    }
 
-    function abrirNuevoExtintor() {
-        if (!isAdmin) return;
-        editorModoCreacion = true;
-        currentItemIndex = null;
-        document.getElementById('editor-title').innerHTML = `<i class="fas fa-plus-circle" style="color:#10b981;"></i> Registrar nuevo extintor`;
-        document.getElementById('editor-subtitle').textContent = 'Complete todos los campos para crear un nuevo extintor.';
-        const editorBody = document.getElementById('editor-body');
-        editorBody.innerHTML = '';
-        const campos = [
-            'N', 
-            'N SERIE ACTUAL', 
-            'TIPO', 
-            'CAP.', 
-            'costo_recarga', 
-            'zona', 
-            'gerencia', 
-            'AREA RESPONSABLE', 
-            'UBICACION', 
-            'ph_vencimiento', 
-            'F. VENC.', 
-            'fecha_fabricacion', 
-            'proveedor', 
-            'anterior_ubicacion', 
-            'vigencia_actual'
-        ];
-        campos.forEach(clave => {
-            const campo = document.createElement('div');
-            campo.className = 'editor-field';
-            const label = document.createElement('label');
-            label.textContent = nombresMostrar[clave] || clave;
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.value = '';
-            input.dataset.key = clave;
-            input.disabled = false;
-            campo.appendChild(label);
-            campo.appendChild(input);
-            editorBody.appendChild(campo);
-        });
-        document.getElementById('editor-evidencia-container').innerHTML = '';
-        document.getElementById('editor-left-actions').style.display = 'none';
-        const saveBtn = document.getElementById('editor-save-btn');
-        saveBtn.innerHTML = '<i class="fas fa-save"></i> Crear nuevo extintor';
-        saveBtn.onclick = function() { guardarNuevoExtintor(); };
-        closeModal();
-        editorModal.classList.add('active');
+        if (error) throw error;
+
+        // 2) Solo si cambió el N, actualizar tablas relacionadas EN PARALELO
+        if (numeroNuevo !== numeroAnterior) {
+            const [movRes, obsRes] = await Promise.all([
+                supabaseClient
+                    .from(TABLA_MOVIMIENTOS)
+                    .update({ n_extintor: numeroNuevo })
+                    .eq('n_extintor', numeroAnterior),
+                supabaseClient
+                    .from(TABLA_OBSERVACIONES)
+                    .update({ n_extintor: numeroNuevo })
+                    .eq('n_extintor', numeroAnterior)
+            ]);
+            if (movRes.error) console.error('Error actualizando movimientos:', movRes.error);
+            if (obsRes.error) console.error('Error actualizando observaciones:', obsRes.error);
+
+            // Actualizar claves en memoria
+            if (movimientosActivos[numeroAnterior]) {
+                movimientosActivos[numeroNuevo] = movimientosActivos[numeroAnterior];
+                delete movimientosActivos[numeroAnterior];
+            }
+            if (movimientosPrestamoActivos[numeroAnterior]) {
+                movimientosPrestamoActivos[numeroNuevo] = movimientosPrestamoActivos[numeroAnterior];
+                delete movimientosPrestamoActivos[numeroAnterior];
+            }
+            if (movimientosGarantiaActivos[numeroAnterior]) {
+                movimientosGarantiaActivos[numeroNuevo] = movimientosGarantiaActivos[numeroAnterior];
+                delete movimientosGarantiaActivos[numeroAnterior];
+            }
+        }
+
+        // 3) Actualizar SOLO en memoria (sin SELECT de red)
+        const idx = misDatos.findIndex(it => String(it["N"]) === numeroAnterior);
+        if (idx !== -1) {
+            misDatos[idx] = { ...item, ...cambios };
+            if (numeroNuevo !== numeroAnterior) {
+                misDatos[idx]["N"] = numeroNuevo;
+            }
+        }
+
+        // 4) Re-render local sin volver a pedir a Supabase
+        applyFilters();
+
+        // 5) Cerrar el editor PRIMERO, luego avisar
+        closeEditorModal();
+
+        // 6) Refrescar autocompletado solo si cambió un campo relevante
+        if (cambios['AREA RESPONSABLE'] !== undefined) {
+            poblarResponsables();
+        }
+
+        await showGenericModal('Registro actualizado correctamente.', 'Éxito');
+
+    } catch (err) {
+        console.error(err);
+        await showGenericModal('No se pudieron guardar los cambios: ' + (err.message || err), 'Error');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = textoOriginal;
     }
+}
 
     async function guardarNuevoExtintor() {
         if (!isAdmin || !editorModoCreacion) return;
