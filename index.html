@@ -965,6 +965,23 @@
 <div id="prompt-modal" class="modal"><div class="modal-content" style="max-width:450px;"><div class="modal-header"><h2 id="prompt-modal-title" style="font-size:1.2rem;">Ingrese información</h2><button class="modal-close" onclick="closePromptModal()">&times;</button></div><div class="modal-section"><div id="prompt-modal-message" style="margin-bottom:12px; font-size:0.95rem; color:#334155;"></div><div class="form-group"><input type="text" id="prompt-modal-input" placeholder="Escriba aquí..." style="width:100%; padding:12px; border:1px solid #d1d9e6; border-radius:12px; font-size:1rem;"></div></div><div class="modal-actions" style="justify-content:center;"><button class="btn btn-primary" onclick="acceptPrompt()">Aceptar</button><button class="btn btn-secondary" onclick="closePromptModal()">Cancelar</button></div></div></div>
 
 <script>
+    function actualizarVisibilidadFiltros() {
+    const numeroGroup = document.getElementById('numero-filter')?.closest('.filter-group');
+    const dateWrap = document.querySelector('.date-filter-wrap');
+    const condicionGroup = document.getElementById('condicion-filter')?.closest('.filter-group');
+
+    const display = isAdmin ? '' : 'none';
+
+    if (numeroGroup) numeroGroup.style.display = display;
+    if (dateWrap) dateWrap.style.display = display;
+    if (condicionGroup) condicionGroup.style.display = display;
+
+    // Limpieza opcional para modo público
+    if (!isAdmin) {
+        if (numeroFilter) numeroFilter.value = '';
+        if (condicionFilter) condicionFilter.value = '';
+    }
+}
     // ============================================================
     //  CONFIGURACIÓN SUPABASE
     // ============================================================
@@ -1289,17 +1306,21 @@
     }
 
     function aplicarPermisos() {
-        const estadoHeader = document.getElementById('estado-header');
-        const garantiaHeader = document.getElementById('garantia-header');
-        if (!isAdmin) {
-            if (estadoHeader) estadoHeader.style.display = 'none';
-        } else {
-            if (estadoHeader) estadoHeader.style.display = 'table-cell';
-        }
-        actualizarOpcionesCondicion();
-        actualizarMenuAdmin();
-        if (garantiaHeader) garantiaHeader.style.display = 'table-cell';
+    const estadoHeader = document.getElementById('estado-header');
+    const garantiaHeader = document.getElementById('garantia-header');
+
+    if (!isAdmin) {
+        if (estadoHeader) estadoHeader.style.display = 'none';
+    } else {
+        if (estadoHeader) estadoHeader.style.display = 'table-cell';
     }
+
+    actualizarOpcionesCondicion();
+    actualizarMenuAdmin();
+    actualizarVisibilidadFiltros();   // <-- NUEVA LÍNEA
+
+    if (garantiaHeader) garantiaHeader.style.display = 'table-cell';
+}
 
     async function cargarMovimientosActivos() {
         try {
@@ -1558,36 +1579,44 @@
     //  FILTROS Y RENDER
     // ============================================================
     function applyFilters() {
-        const selectedResponsable = responsableFilter.value.trim();
-        const selectedNumero = numeroFilter ? numeroFilter.value.trim().toLowerCase() : "";
-        const selectedDesde = calPendingDesde || "";
-        const selectedHasta = calPendingHasta || "";
-        const selectedCondicion = condicionFilter.value;
+    const selectedResponsable = responsableFilter.value.trim();
 
-        currentFilteredData = misDatos.filter(item => {
-            const no = String(item["N"]);
-            const responsableActual = String(item["AREA RESPONSABLE"] ?? "").trim();
-            let matchResponsable = true;
-            if (selectedResponsable) {
-                matchResponsable = responsableActual.toLowerCase() === selectedResponsable.toLowerCase();
-                if (!matchResponsable && movimientosActivos[no]) {
-                    const mov = movimientosActivos[no];
-                    if (String(mov.responsable_destino || '').toLowerCase() === selectedResponsable.toLowerCase()) matchResponsable = true;
-                }
-                if (!matchResponsable && item["ubicacion_prestamo"]) {
-                    if (item["ubicacion_prestamo"].toLowerCase().includes(`préstamo a: ${selectedResponsable.toLowerCase()}`)) matchResponsable = true;
-                }
+    // En modo público solo se usa el filtro de área
+    const selectedNumero = (isAdmin && numeroFilter) ? numeroFilter.value.trim().toLowerCase() : "";
+    const selectedDesde = isAdmin ? (calPendingDesde || "") : "";
+    const selectedHasta = isAdmin ? (calPendingHasta || "") : "";
+    const selectedCondicion = isAdmin ? condicionFilter.value : "";
+
+    currentFilteredData = misDatos.filter(item => {
+        const no = String(item["N"]);
+        const responsableActual = String(item["AREA RESPONSABLE"] ?? "").trim();
+        let matchResponsable = true;
+        if (selectedResponsable) {
+            matchResponsable = responsableActual.toLowerCase() === selectedResponsable.toLowerCase();
+            if (!matchResponsable && movimientosActivos[no]) {
+                const mov = movimientosActivos[no];
+                if (String(mov.responsable_destino || '').toLowerCase() === selectedResponsable.toLowerCase()) matchResponsable = true;
             }
-            if (!matchResponsable) return false;
-            if (selectedNumero && !String(item["N"] ?? "").toLowerCase().includes(selectedNumero)) return false;
-            if (!itemMatchesDateRange(item, selectedDesde, selectedHasta)) return false;
-            const condicionActual = getCondicionItem(item);
-            if (selectedCondicion && condicionActual !== selectedCondicion) return false;
-            return true;
-        });
-        renderTable(currentFilteredData);
-        updateCounter(currentFilteredData.length, misDatos.length);
-    }
+            if (!matchResponsable && item["ubicacion_prestamo"]) {
+                if (item["ubicacion_prestamo"].toLowerCase().includes(`préstamo a: ${selectedResponsable.toLowerCase()}`)) matchResponsable = true;
+            }
+        }
+        if (!matchResponsable) return false;
+        if (selectedNumero && !String(item["N"] ?? "").toLowerCase().includes(selectedNumero)) return false;
+        if (!itemMatchesDateRange(item, selectedDesde, selectedHasta)) return false;
+
+        const condicionActual = getCondicionItem(item);
+
+        // Excluir extintores dados de baja en modo público
+        if (!isAdmin && condicionActual === 'Baja') return false;
+
+        if (selectedCondicion && condicionActual !== selectedCondicion) return false;
+        return true;
+    });
+
+    renderTable(currentFilteredData);
+    updateCounter(currentFilteredData.length, misDatos.length);
+}
 
     function compararNumeros(a, b) {
         const na = Number(String(a["N"] ?? "").replace(",", "."));
