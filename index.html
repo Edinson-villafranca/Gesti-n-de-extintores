@@ -761,7 +761,7 @@
         }
         .evidencia-preview {
             max-width: 100%;
-            max-height: 200px;
+            max-height: 480px;
             margin-top: 10px;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
@@ -1012,6 +1012,8 @@
     const counterDisplay = document.getElementById('counter-display');
 
     let currentItemIndex = null;
+    let extintorBajaOrigen = null;
+    let extintoresReemplazados = {}; 
     let observacionesPublicas = [];
     let historialCompleto = [];
     let currentFilteredData = [];
@@ -1607,11 +1609,16 @@
 
         const condicionActual = getCondicionItem(item);
 
-        // Excluir extintores dados de baja en modo público
-        if (!isAdmin && condicionActual === 'Baja') return false;
+// Si está en Baja y YA fue reemplazado → ocultar siempre
+if (condicionActual === 'Baja' && extintoresReemplazados[no]) {
+    return false;
+}
 
-        if (selectedCondicion && condicionActual !== selectedCondicion) return false;
-        return true;
+// En modo público, ocultar los que están en Baja (aunque no tengan reemplazo)
+if (!isAdmin && condicionActual === 'Baja') return false;
+
+if (selectedCondicion && condicionActual !== selectedCondicion) return false;
+return true;
     });
 
     renderTable(currentFilteredData);
@@ -1908,7 +1915,7 @@
         let html = `<h3 style="color:#10b981;">Inventario Principal de Extintores</h3><table border="1" style="font-size:12px;"><thead><tr style="background:#0f172a;color:#fff;">${todasLasClaves.map(c => `<th>${c}</th>`).join('')}<th>Condición Actual</th><th>Estado Actual</th><th>Garantía</th></tr></thead><tbody>`;
         datosAExportar.forEach(item => {
             html += `<tr>`;
-            todasLasClaves.forEach(c => { let val = item[c] || "-"; if (c === 'evidencia' && val !== "-" && val.trim() !== "") { val = `<a href="${val}" target="_blank">Ver evidencia</a>`; } html += `<td>${val}</td>`; });
+            todasLasClaves.forEach(c => { let val = item[c] || "-"; if (c === 'evidencia' && val !== "-" && val.trim() !== "") { val = `<a href="${val}" target="_blank">Certificado de descarte</a>`; } html += `<td>${val}</td>`; });
             html += `<td>${getCondicionItem(item)}</td><td>${getEstadoItem(item)}</td><td>${getGarantiaReemplazo(item)}</td></tr>`;
         });
         html += `</tbody></table><br><br>`;
@@ -1950,7 +1957,7 @@
             : "-";
         
         const evidencia = item["evidencia"] || "";
-        const evidenciaHTML = evidencia.trim() ? `<div class="modal-row"><label>Evidencia baja:</label><value><a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Ver evidencia</a></value></div>` : "";
+        const evidenciaHTML = evidencia.trim() ? `<div class="modal-row"><label>Evidencia baja:</label><value><a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Certificado de descarte</a></value></div>` : "";
 
         let movimientoHTML = '';
         if (prestamoActivo) {
@@ -2524,24 +2531,106 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     //  EDITOR, BAJA, NUEVO REEMPLAZO
     // ============================================================
     const nombresMostrar = {
-        'N': 'Número de Extintor',
-        'N SERIE ACTUAL': 'Número de Serie Actual',
-        'TIPO': 'Tipo de Extintor',
-        'CAP.': 'Capacidad',
-        'costo_recarga': 'Costo de Recarga',
-        'zona': 'Zona',
-        'gerencia': 'Gerencia',
-        'AREA RESPONSABLE': 'Área Responsable',
-        'UBICACION': 'Ubicación Asignada',
-        'ph_vencimiento': 'Vencimiento PH',
-        'F. VENC.': 'Vencimiento de Recarga',
-        'fecha_fabricacion': 'Fecha de Fabricación',
-        'proveedor': 'Proveedor',
-        'anterior_ubicacion': 'Anterior Ubicación',
-        'vigencia_actual': 'Vigencia Actual',
-        'ubicacion_prestamo': 'Ubicación Actual'
-    };
+    'N': 'Número de Extintor',
+    'N SERIE ACTUAL': 'Número de Serie Actual',
+    'TIPO': 'Tipo de Extintor',
+    'CAP.': 'Capacidad',
+    'costo_recarga': 'Costo de Recarga',
+    'zona': 'Zona',
+    'gerencia': 'Gerencia',
+    'AREA RESPONSABLE': 'Área Responsable',
+    'UBICACION': 'Ubicación Asignada',
+    'ph_vencimiento': 'Vencimiento PH',
+    'F. VENC.': 'Vencimiento de Recarga',
+    'fecha_fabricacion': 'Fecha de Fabricación',
+    'proveedor': 'Proveedor',
+    'anterior_ubicacion': 'Anterior Ubicación',
+    'vigencia_actual': 'Vigencia Actual',
+    'ubicacion_prestamo': 'Ubicación Actual',
+    'CONDICION': 'Condición',             
+    'ESTADO': 'Estado',                   
+    'observaciones': 'Observaciones',     
+    'proxima_recarga': 'Próxima Recarga'  
+};
 
+    function abrirNuevoExtintor() {
+    if (!isAdmin) return;
+
+    const itemBase = (currentItemIndex !== null && misDatos[currentItemIndex])
+        ? misDatos[currentItemIndex]
+        : {};
+
+    // Guardar origen si venimos de un extintor dado de baja
+    extintorBajaOrigen = (itemBase['CONDICION'] === 'Baja') ? itemBase : null;
+
+    editorModoCreacion = true;
+
+    const titulo = extintorBajaOrigen
+        ? `Registrar extintor de reemplazo del N° ${itemBase['N']}`
+        : 'Registrar nuevo extintor';
+
+    document.getElementById('editor-title').innerHTML =
+        `<i class="fas fa-exchange-alt" style="color:#10b981;"></i> ${titulo}`;
+    document.getElementById('editor-subtitle').textContent = extintorBajaOrigen
+        ? `El nuevo extintor reemplazará al N° ${itemBase['N']} (dado de baja). Modifique lo que necesite.`
+        : 'Datos precargados. Modifique lo que necesite antes de guardar.';
+
+    const editorBody = document.getElementById('editor-body');
+    editorBody.innerHTML = '';
+
+    const excluir = ['id', 'created_at', 'updated_at', 'evidencia'];
+    const clavesItem = Object.keys(itemBase).filter(k => !excluir.includes(k));
+
+    clavesItem.forEach(clave => {
+        const campo = document.createElement('div');
+        campo.className = 'editor-field';
+
+        const label = document.createElement('label');
+        label.textContent = nombresMostrar[clave] || clave;
+
+        const valorBase = itemBase[clave] ?? '';
+        const input = String(valorBase).length > 70
+            ? document.createElement('textarea')
+            : document.createElement('input');
+
+        input.dataset.key = clave;
+        input.disabled = false;
+
+        if (clave === 'N') {
+    // ❌ NO precargar el número viejo — el nuevo debe ser distinto
+    input.value = '';
+    input.placeholder = `Nuevo N° (el anterior era ${valorBase})`;
+    campo.style.border = '2px solid #f59e0b';
+    campo.style.background = '#fffbeb';
+    label.style.color = '#b45309';
+    label.textContent = 'Número de Extintor (NUEVO, obligatorio)';
+} else if (clave === 'CONDICION') {
+            input.value = 'Vigente';
+        } else if (clave === 'ESTADO' || clave === 'ubicacion_prestamo') {
+            input.value = '';
+        } else if (clave === 'observaciones') {
+            input.value = extintorBajaOrigen
+                ? `Reemplazo del extintor dado de baja N° ${itemBase['N']}`
+                : 'Creado manualmente desde el sistema.';
+        } else {
+            input.value = String(valorBase);
+        }
+
+        campo.appendChild(label);
+        campo.appendChild(input);
+        editorBody.appendChild(campo);
+    });
+
+    document.getElementById('editor-evidencia-container').innerHTML = '';
+    document.getElementById('editor-left-actions').style.display = 'none';
+
+    const saveBtn = document.getElementById('editor-save-btn');
+    saveBtn.innerHTML = '<i class="fas fa-save"></i> Crear y reemplazar';
+    saveBtn.onclick = function() { guardarNuevoExtintor(); };
+
+    closeModal();
+    editorModal.classList.add('active');
+}
     function abrirEditor(itemIndex) {
         if (!isAdmin) return;
         currentItemIndex = itemIndex;
@@ -2571,7 +2660,7 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
             const evidencia = item["evidencia"] || "";
             const evidenciaContainer = document.getElementById('editor-evidencia-container');
             if (evidencia.trim()) {
-                evidenciaContainer.innerHTML = `<div style="background:#f1f5f9; padding:12px; border-radius:12px; margin-top:10px;"><strong>Evidencia de baja:</strong> <a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Ver evidencia</a></div>`;
+                evidenciaContainer.innerHTML = `<div style="background:#f1f5f9; padding:12px; border-radius:12px; margin-top:10px;"><strong>Evidencia de baja:</strong> <a href="${evidencia}" target="_blank" style="color:#3b82f6;text-decoration:underline;">Certificado de descarte</a></div>`;
             } else {
                 evidenciaContainer.innerHTML = '';
             }
@@ -2624,129 +2713,178 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         document.getElementById('editor-evidencia-container').innerHTML = '';
     }
 
-    async function guardarEdicion() {
-    if (!isAdmin || currentItemIndex === null || editorModoCreacion) return;
+    async function guardarNuevoExtintor() {
+    if (!isAdmin || !editorModoCreacion) return;
 
-    const item = misDatos[currentItemIndex];
-    const cambios = {};
-    const saveBtn = document.getElementById('editor-save-btn');
-
+    const nuevo = {};
+    let numeroNuevo = '';
     document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
         const clave = campo.dataset.key;
-        if (clave) cambios[clave] = campo.value;
+        const valor = campo.value.trim();
+        if (clave === 'N') numeroNuevo = valor;
+        nuevo[clave] = valor;
     });
 
-    const numeroAnterior = String(item['N']);
-    const numeroNuevo = String(cambios['N'] ?? numeroAnterior).trim();
-
     if (!numeroNuevo) {
-        await showGenericModal('El número de extintor no puede quedar vacío.', 'Aviso');
+        await showGenericModal('El número del extintor es obligatorio.', 'Aviso');
         return;
     }
 
-    // Feedback visual: deshabilitar botón
-    const textoOriginal = saveBtn.innerHTML;
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        // ------------------------------------------------------------
+    // VALIDACIÓN CON LIBERACIÓN AUTOMÁTICA SI EL VIEJO ESTÁ EN BAJA
+    // ------------------------------------------------------------
+    const { data: existente } = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .select('N, CONDICION')
+        .eq('N', numeroNuevo)
+        .maybeSingle();
 
-    try {
-        // 1) UPDATE principal (una sola llamada)
-        const { error } = await supabaseClient
-            .from(TABLA_EXTINTORES)
-            .update(cambios)
-            .eq('N', numeroAnterior);
+    if (existente) {
+        // Si el que ocupa ese número está dado de baja, ofrecer liberarlo
+        if (existente.CONDICION === 'Baja') {
 
-        if (error) throw error;
+            const confirmar = await showGenericModal(
+                `El número "${numeroNuevo}" lo ocupa un extintor DADO DE BAJA.\n\n` +
+                `¿Deseas reutilizar ese número para el nuevo? El extintor viejo se ` +
+                `renombrará a "${numeroNuevo}-BAJA-<fecha>" para conservar su historial.`,
+                'Reutilizar número',
+                'Sí, reutilizar',
+                'No, cancelar'
+            );
+            if (!confirmar) return;
 
-        // 2) Solo si cambió el N, actualizar tablas relacionadas EN PARALELO
-        if (numeroNuevo !== numeroAnterior) {
-            const [movRes, obsRes] = await Promise.all([
+            // Renombrar el viejo para liberar el número
+            const sufijo = `-BAJA-${new Date().toISOString().slice(0, 10)}`;
+            const nombreViejo = `${numeroNuevo}${sufijo}`;
+
+            const { error: renombrarErr } = await supabaseClient
+                .from(TABLA_EXTINTORES)
+                .update({ N: nombreViejo })
+                .eq('N', numeroNuevo);
+
+            if (renombrarErr) {
+                console.error('Error renombrando extintor viejo:', renombrarErr);
+                await showGenericModal(
+                    'No se pudo liberar el número: ' + renombrarErr.message,
+                    'Error'
+                );
+                return;
+            }
+
+            // Actualizar referencias en movimientos y observaciones
+            await Promise.all([
                 supabaseClient
                     .from(TABLA_MOVIMIENTOS)
-                    .update({ n_extintor: numeroNuevo })
-                    .eq('n_extintor', numeroAnterior),
+                    .update({ n_extintor: nombreViejo })
+                    .eq('n_extintor', numeroNuevo),
                 supabaseClient
                     .from(TABLA_OBSERVACIONES)
-                    .update({ n_extintor: numeroNuevo })
-                    .eq('n_extintor', numeroAnterior)
+                    .update({ n_extintor: nombreViejo })
+                    .eq('n_extintor', numeroNuevo)
             ]);
-            if (movRes.error) console.error('Error actualizando movimientos:', movRes.error);
-            if (obsRes.error) console.error('Error actualizando observaciones:', obsRes.error);
 
-            // Actualizar claves en memoria
-            if (movimientosActivos[numeroAnterior]) {
-                movimientosActivos[numeroNuevo] = movimientosActivos[numeroAnterior];
-                delete movimientosActivos[numeroAnterior];
+            // Actualizar el objeto en memoria (el origen ahora apunta al nombre nuevo)
+            if (extintorBajaOrigen) {
+                extintorBajaOrigen.N = nombreViejo;
             }
-            if (movimientosPrestamoActivos[numeroAnterior]) {
-                movimientosPrestamoActivos[numeroNuevo] = movimientosPrestamoActivos[numeroAnterior];
-                delete movimientosPrestamoActivos[numeroAnterior];
-            }
-            if (movimientosGarantiaActivos[numeroAnterior]) {
-                movimientosGarantiaActivos[numeroNuevo] = movimientosGarantiaActivos[numeroAnterior];
-                delete movimientosGarantiaActivos[numeroAnterior];
-            }
+
+            console.log(`🔓 Número "${numeroNuevo}" liberado. El extintor viejo ahora es "${nombreViejo}".`);
+
+        } else {
+            // Ocupado por un extintor ACTIVO → no se toca
+            await showGenericModal(
+                `El número "${numeroNuevo}" ya está ocupado por un extintor activo ` +
+                `(condición: ${existente.CONDICION || 'Vigente'}). Usa otro número.`,
+                'Número duplicado',
+                'Entendido'
+            );
+            return;
+        }
+    }
+
+    // Defaults solo si el usuario dejó vacíos
+    if (!nuevo['CONDICION']) nuevo['CONDICION'] = 'Vigente';
+    if (nuevo['ESTADO'] === undefined) nuevo['ESTADO'] = null;
+    if (nuevo['ubicacion_prestamo'] === undefined) nuevo['ubicacion_prestamo'] = null;
+    if (!nuevo['observaciones']) nuevo['observaciones'] = 'Creado manualmente desde el sistema.';
+
+    Object.keys(nuevo).forEach(k => { if (nuevo[k] === '') nuevo[k] = null; });
+
+    const saveBtn = document.getElementById('editor-save-btn');
+    const textoOriginal = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
+
+    try {
+        // 1) Insertar el nuevo extintor
+        const { error: insertErr } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .insert([nuevo]);
+
+        if (insertErr) throw insertErr;
+
+        // 2) Si viene de una baja, registrar el reemplazo
+        if (extintorBajaOrigen) {
+            const noOrigen = String(extintorBajaOrigen['N']);
+            const fecha = new Date().toLocaleString('es-ES');
+
+            // 2.a) Anotar en las observaciones del extintor de baja
+            const obsActualizada =
+                (extintorBajaOrigen['observaciones'] || '') +
+                `\n[Reemplazo ${new Date().toLocaleDateString('es-ES')}] Reemplazado por nuevo extintor N° ${numeroNuevo}`;
+
+            await supabaseClient
+                .from(TABLA_EXTINTORES)
+                .update({ observaciones: obsActualizada })
+                .eq('N', noOrigen);
+
+            // 2.b) Registrar el movimiento
+            await supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .insert([{
+                    n_extintor: numeroNuevo,
+                    tipo: 'reemplazo_baja',
+                    personal: 'Sistema',
+                    reemplazo: noOrigen,
+                    detalle: `Nuevo extintor N° ${numeroNuevo} creado como reemplazo del extintor dado de baja N° ${noOrigen}`,
+                    activo: false
+                }]);
+
+            // 2.c) Historial local
+            historialCompleto.unshift({
+                fecha: fecha,
+                no: numeroNuevo,
+                tipo: 'Reemplazo de baja',
+                personal: 'Sistema',
+                detalle: `Reemplaza al extintor dado de baja N° ${noOrigen}`
+            });
         }
 
-        // 3) Actualizar SOLO en memoria (sin SELECT de red)
-        const idx = misDatos.findIndex(it => String(it["N"]) === numeroAnterior);
-        if (idx !== -1) {
-            misDatos[idx] = { ...item, ...cambios };
-            if (numeroNuevo !== numeroAnterior) {
-                misDatos[idx]["N"] = numeroNuevo;
-            }
-        }
+        const eraReemplazo = !!extintorBajaOrigen;
+const numeroViejoReemplazado = extintorBajaOrigen ? extintorBajaOrigen.N : null;
+extintorBajaOrigen = null;
 
-        // 4) Re-render local sin volver a pedir a Supabase
-        applyFilters();
+closeEditorModal();
+await refreshData();
+await cargarDatosSecundarios();
+poblarResponsables();
+applyFilters();
 
-        // 5) Cerrar el editor PRIMERO, luego avisar
-        closeEditorModal();
-
-        // 6) Refrescar autocompletado solo si cambió un campo relevante
-        if (cambios['AREA RESPONSABLE'] !== undefined) {
-            poblarResponsables();
-        }
-
-        await showGenericModal('Registro actualizado correctamente.', 'Éxito');
+await showGenericModal(
+    eraReemplazo
+        ? `Extintor N° ${numeroNuevo} creado y registrado como reemplazo del N° ${numeroViejoReemplazado}.`
+        : 'Extintor creado exitosamente.',
+    'Éxito'
+);
 
     } catch (err) {
         console.error(err);
-        await showGenericModal('No se pudieron guardar los cambios: ' + (err.message || err), 'Error');
+        await showGenericModal('Error al crear el extintor: ' + (err.message || err), 'Error');
     } finally {
         saveBtn.disabled = false;
         saveBtn.innerHTML = textoOriginal;
     }
 }
-
-    async function guardarNuevoExtintor() {
-        if (!isAdmin || !editorModoCreacion) return;
-        const nuevo = {};
-        let numeroNuevo = '';
-        document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
-            const clave = campo.dataset.key;
-            const valor = campo.value.trim();
-            if (clave === 'N') numeroNuevo = valor;
-            nuevo[clave] = valor;
-        });
-        if (!numeroNuevo) { await showGenericModal('El número del extintor es obligatorio.', 'Aviso'); return; }
-        const { data: existente } = await supabaseClient.from(TABLA_EXTINTORES).select('N').eq('N', numeroNuevo).maybeSingle();
-        if (existente) { await showGenericModal('Ya existe un extintor con ese número.', 'Error'); return; }
-        nuevo['CONDICION'] = 'Vigente';
-        nuevo['ESTADO'] = null;
-        nuevo['ubicacion_prestamo'] = null;
-        nuevo['observaciones'] = 'Creado manualmente desde el sistema.';
-        Object.keys(nuevo).forEach(k => { if (nuevo[k] === '') nuevo[k] = null; });
-        const { error } = await supabaseClient.from(TABLA_EXTINTORES).insert([nuevo]);
-        if (error) { console.error(error); await showGenericModal('Error al crear el extintor: ' + error.message, 'Error'); return; }
-        await showGenericModal('Extintor creado exitosamente.', 'Éxito');
-        closeEditorModal();
-        await refreshData();
-        await cargarDatosSecundarios();
-        poblarResponsables();
-        applyFilters();
-    }
-
     function abrirBaja() {
         if (!isAdmin || currentItemIndex === null) return;
         const item = misDatos[currentItemIndex];
@@ -2763,39 +2901,81 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     function closeBajaModal() { document.getElementById('baja-modal').classList.remove('active'); bajaArchivo = null; }
 
     function previewEvidenciaBaja(input) {
-        const file = input.files[0];
-        if (!file) return;
-        bajaArchivo = file;
-        const preview = document.getElementById('baja-preview');
-        const fileName = document.getElementById('baja-file-name');
-        fileName.textContent = `Archivo seleccionado: ${file.name}`;
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(e) { preview.innerHTML = `<img src="${e.target.result}" alt="Vista previa">`; preview.style.display = 'block'; };
-            reader.readAsDataURL(file);
-        } else {
-            preview.innerHTML = `<p style="color:#475569;">📄 ${file.name}</p>`;
+    const file = input.files[0];
+    if (!file) return;
+    bajaArchivo = file;
+    const preview = document.getElementById('baja-preview');
+    const fileName = document.getElementById('baja-file-name');
+    fileName.textContent = `Archivo seleccionado: ${file.name}`;
+
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" alt="Vista previa">`;
             preview.style.display = 'block';
-        }
+        };
+        reader.readAsDataURL(file);
+
+    } else if (file.type === 'application/pdf') {
+        const url = URL.createObjectURL(file);
+        preview.innerHTML = `<iframe src="${url}" style="width:100%; height:420px; border:none; border-radius:8px;"></iframe>`;
+        preview.style.display = 'block';
+
+    } else {
+        preview.innerHTML = `<p style="color:#475569;">📄 ${file.name}</p>`;
+        preview.style.display = 'block';
     }
+}
 
     async function confirmarBaja() {
-        if (!isAdmin || currentItemIndex === null) return;
-        const item = misDatos[currentItemIndex];
-        const no = String(item["N"]);
-        const motivo = document.getElementById('baja-motivo').value.trim() || 'Sin motivo especificado';
-        const archivo = bajaArchivo;
-        let evidenciaUrl = null;
-        if (archivo) {
-            const fileExt = archivo.name.split('.').pop();
-            const fileName = `baja_${no}_${Date.now()}.${fileExt}`;
-            const { error } = await supabaseClient.storage.from(BUCKET_NAME).upload(`bajas/${fileName}`, archivo, { cacheControl: '3600', upsert: false });
-            if (error) { console.error('Error subiendo archivo:', error); await showGenericModal('Error al subir la evidencia: ' + error.message, 'Error'); return; }
-            const { publicURL } = supabaseClient.storage.from(BUCKET_NAME).getPublicUrl(`bajas/${fileName}`);
-            evidenciaUrl = publicURL;
+    if (!isAdmin || currentItemIndex === null) return;
+    const item = misDatos[currentItemIndex];
+    const no = String(item["N"]);
+    const motivo = document.getElementById('baja-motivo').value.trim() || 'Sin motivo especificado';
+    const archivo = bajaArchivo;
+    let evidenciaUrl = null;
+
+    if (archivo) {
+        const fileExt = archivo.name.split('.').pop();
+        const fileName = `baja_${no}_${Date.now()}.${fileExt}`;
+
+        const { error } = await supabaseClient
+            .storage
+            .from(BUCKET_NAME)
+            .upload(`bajas/${fileName}`, archivo, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: archivo.type   // 👈 importante para PDFs
+            });
+
+        if (error) {
+            console.error('Error subiendo archivo:', error);
+            await showGenericModal('Error al subir la evidencia: ' + error.message, 'Error');
+            return;
         }
-        const updateData = { CONDICION: 'Baja', ESTADO: 'No Disponible', ubicacion_prestamo: null, observaciones: (item["observaciones"] || '') + `\n[Baja] ${motivo}${evidenciaUrl ? ' - Evidencia: ' + evidenciaUrl : ''}`, evidencia: evidenciaUrl || '' };
-        const { error } = await supabaseClient.from(TABLA_EXTINTORES).update(updateData).eq('N', no);
+
+        // 👇 CORRECCIÓN v2
+        const { data: urlData } = supabaseClient
+            .storage
+            .from(BUCKET_NAME)
+            .getPublicUrl(`bajas/${fileName}`);
+
+        evidenciaUrl = urlData?.publicUrl || null;
+    }
+
+    const updateData = {
+        CONDICION: 'Baja',
+        ESTADO: 'No Disponible',
+        ubicacion_prestamo: null,
+        observaciones: (item["observaciones"] || '') +
+            `\n[Baja] ${motivo}${evidenciaUrl ? ' - Evidencia: ' + evidenciaUrl : ''}`,
+        evidencia: evidenciaUrl || ''
+    };
+
+    const { error } = await supabaseClient
+        .from(TABLA_EXTINTORES)
+        .update(updateData)
+        .eq('N', no);
         if (error) { console.error(error); await showGenericModal('Error al dar de baja: ' + error.message, 'Error'); return; }
         await supabaseClient.from(TABLA_MOVIMIENTOS).insert({ n_extintor: no, tipo: 'baja', personal: 'Sistema', detalle: `Baja - Motivo: ${motivo}${evidenciaUrl ? ' - Evidencia: ' + evidenciaUrl : ''}`, activo: false });
         historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: no, tipo: 'Baja', personal: 'Sistema', detalle: `Motivo: ${motivo}` });
@@ -2818,6 +2998,7 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
             campo.className = 'editor-field';
             const label = document.createElement('label');
             label.textContent = nombresMostrar[clave] || clave;
+            
             const input = document.createElement('input');
             input.type = 'text';
             input.value = valoresDefault[clave] || '';
@@ -2846,8 +3027,78 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
             nuevo[clave] = valor;
         });
         if (!numeroNuevo) { await showGenericModal('El número del nuevo extintor es obligatorio.', 'Aviso'); return; }
-        const { data: existente } = await supabaseClient.from(TABLA_EXTINTORES).select('N').eq('N', numeroNuevo).maybeSingle();
-        if (existente) { await showGenericModal('Ya existe un extintor con ese número.', 'Error'); return; }
+        // ------------------------------------------------------------
+// VALIDACIÓN CON LIBERACIÓN AUTOMÁTICA SI EL VIEJO ESTÁ EN BAJA
+// ------------------------------------------------------------
+const { data: existente } = await supabaseClient
+    .from(TABLA_EXTINTORES)
+    .select('N, CONDICION, observaciones')
+    .eq('N', numeroNuevo)
+    .maybeSingle();
+
+if (existente) {
+    // Solo permitimos reutilizar el número si el actual está en Baja
+    if (existente.CONDICION === 'Baja') {
+
+        const confirmar = await showGenericModal(
+            `El número "${numeroNuevo}" lo ocupa un extintor DADO DE BAJA.\n\n` +
+            `¿Deseas reutilizar ese número para el nuevo? El extintor viejo se ` +
+            `renombrará a "${numeroNuevo}-BAJA" para conservar su historial.`,
+            'Reutilizar número',
+            'Sí, reutilizar',
+            'No, cancelar'
+        );
+        if (!confirmar) return;
+
+        // Renombrar el viejo para liberar el número
+        const sufijo = `-BAJA-${new Date().toISOString().slice(0, 10)}`;
+        const nombreViejo = `${numeroNuevo}${sufijo}`;
+
+        const { error: renombrarErr } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .update({ N: nombreViejo })
+            .eq('N', numeroNuevo);
+
+        if (renombrarErr) {
+            console.error('Error renombrando extintor viejo:', renombrarErr);
+            await showGenericModal(
+                'No se pudo liberar el número: ' + renombrarErr.message,
+                'Error'
+            );
+            return;
+        }
+
+        // Actualizar referencias en movimientos y observaciones
+        await Promise.all([
+            supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .update({ n_extintor: nombreViejo })
+                .eq('n_extintor', numeroNuevo),
+            supabaseClient
+                .from(TABLA_OBSERVACIONES)
+                .update({ n_extintor: nombreViejo })
+                .eq('n_extintor', numeroNuevo)
+        ]);
+
+        // También actualizar el objeto en memoria para que no quede
+        // apuntando al número viejo
+        if (extintorBajaOrigen) {
+            extintorBajaOrigen.N = nombreViejo;
+        }
+
+        console.log(`🔓 Número "${numeroNuevo}" liberado. El extintor viejo ahora es "${nombreViejo}".`);
+
+    } else {
+        // El extintor que ocupa ese número NO está en baja → no lo tocamos
+        await showGenericModal(
+            `El número "${numeroNuevo}" ya está ocupado por un extintor activo ` +
+            `(condición: ${existente.CONDICION || 'Vigente'}). Usa otro número.`,
+            'Número duplicado',
+            'Entendido'
+        );
+        return;
+    }
+}
         nuevo['CONDICION'] = 'Vigente';
         nuevo['ESTADO'] = 'Prestado';
         nuevo['ubicacion_prestamo'] = `Préstamo a: ${original["AREA RESPONSABLE"] || 'Sin responsable'} | Reemplaza al N ${noOriginal}`;
@@ -2884,17 +3135,23 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         else observacionesPublicas = (observaciones || []).map(o => ({ id: o.id, no: o.n_extintor, texto: o.texto, fecha: new Date(o.created_at).toLocaleDateString('es-ES') }));
         if (movErr) { console.error(movErr); return; }
         movimientosActivos = {};
-        movimientosPrestamoActivos = {};
-        movimientosGarantiaActivos = {};
-        historialCompleto = [];
-        (movimientos || []).forEach(mov => {
-            const fecha = new Date(mov.created_at).toLocaleString('es-ES');
-            let tipoTexto = '';
+movimientosPrestamoActivos = {};
+movimientosGarantiaActivos = {};
+historialCompleto = [];
+extintoresReemplazados = {};    
+(movimientos || []).forEach(mov => {
+    
+    if (mov.tipo === 'reemplazo_baja' && mov.reemplazo) {
+        extintoresReemplazados[String(mov.reemplazo)] = String(mov.n_extintor);
+    }
+    const fecha = new Date(mov.created_at).toLocaleString('es-ES');
+    let tipoTexto = '';
             if (mov.tipo === 'prestamo_unidad') tipoTexto = 'Préstamo a unidad';
             else if (mov.tipo === 'prestamo_interno') tipoTexto = 'Préstamo Interno';
             else if (mov.tipo === 'retorno') tipoTexto = 'Retorno';
             else if (mov.tipo === 'baja') tipoTexto = 'Baja';
             else if (mov.tipo === 'garantia') tipoTexto = 'Garantía';
+            else if (mov.tipo === 'reemplazo_baja') tipoTexto = 'Reemplazo de baja';
             else tipoTexto = 'Otro';
             historialCompleto.push({
                 id: mov.id,
@@ -2963,7 +3220,13 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
             .order('created_at', { ascending: false })
             .limit(200);
         
-        historialCompleto = (histData || []).map(mov => ({
+            extintoresReemplazados = {};
+(histData || []).forEach(mov => {
+    if (mov.tipo === 'reemplazo_baja' && mov.reemplazo) {
+        extintoresReemplazados[String(mov.reemplazo)] = String(mov.n_extintor);
+    }
+});
+            historialCompleto = (histData || []).map(mov => ({
             id: mov.id,
             fecha: new Date(mov.created_at).toLocaleString('es-ES'),
             no: mov.n_extintor,
