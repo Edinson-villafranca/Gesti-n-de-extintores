@@ -2712,6 +2712,59 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         document.getElementById('editor-subtitle').textContent = 'Modifica cualquier dato y guarda todos los cambios juntos.';
         document.getElementById('editor-evidencia-container').innerHTML = '';
     }
+        async function guardarEdicion() {
+        if (!isAdmin || currentItemIndex === null) return;
+
+        const item = misDatos[currentItemIndex];
+        const no = String(item["N"]);
+        const cambios = {};
+
+        document.querySelectorAll('#editor-body [data-key]').forEach(campo => {
+            const clave = campo.dataset.key;
+            const valor = campo.value.trim();
+            const original = item[clave] ?? '';
+            if (String(original) !== valor) {
+                cambios[clave] = valor === '' ? null : valor;
+            }
+        });
+
+        if (Object.keys(cambios).length === 0) {
+            await showGenericModal('No hay cambios para guardar.', 'Aviso');
+            return;
+        }
+
+        const saveBtn = document.getElementById('editor-save-btn');
+        const textoOriginal = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+        try {
+            const { error } = await supabaseClient
+                .from(TABLA_EXTINTORES)
+                .update(cambios)
+                .eq('N', no);
+
+            if (error) throw error;
+
+            const idx = misDatos.findIndex(x => String(x.N) === no);
+            if (idx !== -1) {
+                misDatos[idx] = { ...misDatos[idx], ...cambios };
+            }
+
+            closeEditorModal();
+            poblarResponsables();
+            applyFilters();
+
+            await showGenericModal('Cambios guardados correctamente.', 'Éxito');
+
+        } catch (err) {
+            console.error(err);
+            await showGenericModal('Error al guardar: ' + (err.message || err), 'Error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = textoOriginal;
+        }
+    }
 
     async function guardarNuevoExtintor() {
     if (!isAdmin || !editorModoCreacion) return;
