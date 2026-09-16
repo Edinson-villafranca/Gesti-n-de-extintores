@@ -2132,11 +2132,6 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     const itemA = misDatos[currentItemIndex];
     const noA = String(itemA["N"]);
     
-    if (isItemExpired(itemA)) { 
-        await showGenericModal('Este extintor está vencido, no se puede registrar un préstamo interno.', 'Error'); 
-        return; 
-    }
-    
     const estadoActual = itemA["ESTADO"] || "";
     if (estadoActual === "Prestado" || estadoActual === "Almacén SST") { 
         await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error'); 
