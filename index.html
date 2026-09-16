@@ -1342,29 +1342,30 @@
             movimientosActivos = {};
             
             data.forEach(mov => {
-                const fecha = new Date(mov.created_at).toLocaleString('es-ES');
-                
-                if (mov.tipo === 'prestamo_interno' || mov.tipo === 'prestamo_unidad') {
-                    movimientosPrestamoActivos[mov.n_extintor] = {
-                        tipo: mov.tipo,
-                        personal: mov.personal,
-                        motivo: mov.motivo,
-                        reemplazo: mov.reemplazo,
-                        responsable_destino: mov.responsable_destino,
-                        ubicacion_destino: mov.ubicacion_destino,
-                        fecha: fecha
-                    };
-                    movimientosActivos[mov.n_extintor] = movimientosPrestamoActivos[mov.n_extintor];
-                } else if (mov.tipo === 'garantia') {
-                    movimientosGarantiaActivos[mov.n_extintor] = {
-                        reemplazo: mov.reemplazo,
-                        personal: mov.personal,
-                        fecha: fecha
-                    };
-                    movimientosActivos[mov.n_extintor] = movimientosGarantiaActivos[mov.n_extintor];
-                }
-            });
-            
+    const fecha = new Date(mov.created_at).toLocaleString('es-ES');
+    
+    if (mov.tipo === 'prestamo_interno' || mov.tipo === 'prestamo_unidad') {
+        movimientosPrestamoActivos[mov.n_extintor] = {
+            tipo: mov.tipo,
+            personal: mov.personal,
+            motivo: mov.motivo,
+            reemplazo: mov.reemplazo,
+            responsable_destino: mov.responsable_destino,
+            ubicacion_destino: mov.ubicacion_destino,
+            fecha: fecha
+        };
+        movimientosActivos[mov.n_extintor] = movimientosPrestamoActivos[mov.n_extintor];
+    } else if (mov.tipo === 'garantia') {
+        movimientosGarantiaActivos[mov.n_extintor] = {
+            reemplazo: mov.reemplazo,
+            personal: mov.personal,
+            fecha: fecha
+        };
+        if (!movimientosPrestamoActivos[mov.n_extintor]) {
+            movimientosActivos[mov.n_extintor] = movimientosGarantiaActivos[mov.n_extintor];
+        }
+    }
+});   
         } catch (err) {
             console.error('Error inesperado:', err);
         }
@@ -1593,16 +1594,20 @@
         const no = String(item["N"]);
         const responsableActual = String(item["AREA RESPONSABLE"] ?? "").trim();
         let matchResponsable = true;
-        if (selectedResponsable) {
-            matchResponsable = responsableActual.toLowerCase() === selectedResponsable.toLowerCase();
-            if (!matchResponsable && movimientosActivos[no]) {
-                const mov = movimientosActivos[no];
-                if (String(mov.responsable_destino || '').toLowerCase() === selectedResponsable.toLowerCase()) matchResponsable = true;
-            }
-            if (!matchResponsable && item["ubicacion_prestamo"]) {
-                if (item["ubicacion_prestamo"].toLowerCase().includes(`préstamo a: ${selectedResponsable.toLowerCase()}`)) matchResponsable = true;
-            }
+if (selectedResponsable) {
+    const sel = selectedResponsable.toLowerCase();
+    matchResponsable = responsableActual.toLowerCase() === sel;
+
+    if (!matchResponsable) {
+        const prest = movimientosPrestamoActivos[no];
+        if (prest && String(prest.responsable_destino || '').toLowerCase() === sel) {
+            matchResponsable = true;
         }
+    }
+    if (!matchResponsable && item["ubicacion_prestamo"]) {
+        if (item["ubicacion_prestamo"].toLowerCase().includes(`préstamo a: ${sel}`)) matchResponsable = true;
+    }
+}
         if (!matchResponsable) return false;
         if (selectedNumero && !String(item["N"] ?? "").toLowerCase().includes(selectedNumero)) return false;
         if (!itemMatchesDateRange(item, selectedDesde, selectedHasta)) return false;
@@ -2257,11 +2262,13 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     // Actualizar movimientos activos en memoria (sin consultar Supabase)
     const fecha = new Date().toLocaleString('es-ES');
     movimientosGarantiaActivos[no] = {
-        reemplazo: reemplazo,
-        personal: personal,
-        fecha: fecha
-    };
+    reemplazo: reemplazo,
+    personal: personal,
+    fecha: fecha
+};
+if (!movimientosPrestamoActivos[no]) {
     movimientosActivos[no] = movimientosGarantiaActivos[no];
+}
     
     // Agregar al historial local (sin recargar todo)
     historialCompleto.unshift({
