@@ -2815,11 +2815,13 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
 
-    try {
-        // 1) Insertar el nuevo extintor
-        const { error: insertErr } = await supabaseClient
+        try {
+        // 1) Insertar el nuevo extintor y capturar la fila creada
+        const { data: insertData, error: insertErr } = await supabaseClient
             .from(TABLA_EXTINTORES)
-            .insert([nuevo]);
+            .insert([nuevo])
+            .select()
+            .single();
 
         if (insertErr) throw insertErr;
 
@@ -2828,54 +2830,70 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
             const noOrigen = String(extintorBajaOrigen['N']);
             const fecha = new Date().toLocaleString('es-ES');
 
-            // 2.a) Anotar en las observaciones del extintor de baja
             const obsActualizada =
                 (extintorBajaOrigen['observaciones'] || '') +
                 `\n[Reemplazo ${new Date().toLocaleDateString('es-ES')}] Reemplazado por nuevo extintor N° ${numeroNuevo}`;
 
-            await supabaseClient
-                .from(TABLA_EXTINTORES)
-                .update({ observaciones: obsActualizada })
-                .eq('N', noOrigen);
+            const detalleReemplazo = `Nuevo extintor N° ${numeroNuevo} creado como reemplazo del extintor dado de baja N° ${noOrigen}`;
 
-            // 2.b) Registrar el movimiento
-            await supabaseClient
-                .from(TABLA_MOVIMIENTOS)
-                .insert([{
-                    n_extintor: numeroNuevo,
-                    tipo: 'reemplazo_baja',
-                    personal: 'Sistema',
-                    reemplazo: noOrigen,
-                    detalle: `Nuevo extintor N° ${numeroNuevo} creado como reemplazo del extintor dado de baja N° ${noOrigen}`,
-                    activo: false
-                }]);
+            const [updRes, movRes] = await Promise.all([
+                supabaseClient.from(TABLA_EXTINTORES)
+                    .update({ observaciones: obsActualizada })
+                    .eq('N', noOrigen),
+                supabaseClient.from(TABLA_MOVIMIENTOS)
+                    .insert([{
+                        n_extintor: numeroNuevo,
+                        tipo: 'reemplazo_baja',
+                        personal: 'Sistema',
+                        reemplazo: noOrigen,
+                        detalle: detalleReemplazo,
+                        activo: false
+                    }])
+                    .select()
+                    .single()
+            ]);
 
-            // 2.c) Historial local
+            if (updRes.error) console.error('Error actualizando observaciones del origen:', updRes.error);
+            if (movRes.error) console.error('Error registrando movimiento de reemplazo:', movRes.error);
+
+            // Actualizar en memoria el extintor origen
+            const idxOrigen = misDatos.findIndex(x => String(x.N) === noOrigen);
+            if (idxOrigen !== -1) {
+                misDatos[idxOrigen] = { ...misDatos[idxOrigen], observaciones: obsActualizada };
+            }
+            extintoresReemplazados[noOrigen] = numeroNuevo;
+
             historialCompleto.unshift({
+                id: movRes.data?.id,
                 fecha: fecha,
                 no: numeroNuevo,
                 tipo: 'Reemplazo de baja',
                 personal: 'Sistema',
-                detalle: `Reemplaza al extintor dado de baja N° ${noOrigen}`
+                detalle: detalleReemplazo
             });
         }
 
+        // 3) Insertar el nuevo extintor en memoria
+        if (insertData) {
+            misDatos.push(insertData);
+            misDatos.sort(compararNumeros);
+        }
+
         const eraReemplazo = !!extintorBajaOrigen;
-const numeroViejoReemplazado = extintorBajaOrigen ? extintorBajaOrigen.N : null;
-extintorBajaOrigen = null;
+        const numeroViejoReemplazado = extintorBajaOrigen ? extintorBajaOrigen.N : null;
+        extintorBajaOrigen = null;
 
-closeEditorModal();
-await refreshData();
-await cargarDatosSecundarios();
-poblarResponsables();
-applyFilters();
+        // 4) Cerrar y refrescar UI SIN volver a consultar Supabase
+        closeEditorModal();
+        poblarResponsables();
+        applyFilters();
 
-await showGenericModal(
-    eraReemplazo
-        ? `Extintor N° ${numeroNuevo} creado y registrado como reemplazo del N° ${numeroViejoReemplazado}.`
-        : 'Extintor creado exitosamente.',
-    'Éxito'
-);
+        await showGenericModal(
+            eraReemplazo
+                ? `Extintor N° ${numeroNuevo} creado y registrado como reemplazo del N° ${numeroViejoReemplazado}.`
+                : 'Extintor creado exitosamente.',
+            'Éxito'
+        );
 
     } catch (err) {
         console.error(err);
@@ -2929,62 +2947,94 @@ await showGenericModal(
 
     async function confirmarBaja() {
     if (!isAdmin || currentItemIndex === null) return;
+
     const item = misDatos[currentItemIndex];
     const no = String(item["N"]);
     const motivo = document.getElementById('baja-motivo').value.trim() || 'Sin motivo especificado';
     const archivo = bajaArchivo;
     let evidenciaUrl = null;
 
-    if (archivo) {
-        const fileExt = archivo.name.split('.').pop();
-        const fileName = `baja_${no}_${Date.now()}.${fileExt}`;
+    // Feedback visual en el botón
+    const confirmBtn = document.querySelector('#baja-modal .btn-danger');
+    const textoOriginal = confirmBtn.innerHTML;
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando…';
 
-        const { error } = await supabaseClient
-            .storage
-            .from(BUCKET_NAME)
-            .upload(`bajas/${fileName}`, archivo, {
-                cacheControl: '3600',
-                upsert: false,
-                contentType: archivo.type   // 👈 importante para PDFs
-            });
+    try {
+        // 1) Subir evidencia (solo si hay archivo)
+        if (archivo) {
+            const fileExt = (archivo.name.split('.').pop() || 'bin').toLowerCase();
+            const fileName = `baja_${no}_${Date.now()}.${fileExt}`;
 
-        if (error) {
-            console.error('Error subiendo archivo:', error);
-            await showGenericModal('Error al subir la evidencia: ' + error.message, 'Error');
-            return;
+            const { error: uploadErr } = await supabaseClient
+                .storage
+                .from(BUCKET_NAME)
+                .upload(`bajas/${fileName}`, archivo, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: archivo.type
+                });
+
+            if (uploadErr) throw new Error('Error al subir la evidencia: ' + uploadErr.message);
+
+            const { data: urlData } = supabaseClient
+                .storage
+                .from(BUCKET_NAME)
+                .getPublicUrl(`bajas/${fileName}`);
+
+            evidenciaUrl = urlData?.publicUrl || null;
         }
 
-        // 👇 CORRECCIÓN v2
-        const { data: urlData } = supabaseClient
-            .storage
-            .from(BUCKET_NAME)
-            .getPublicUrl(`bajas/${fileName}`);
+        // 2) UPDATE extintor + INSERT movimiento EN PARALELO
+        const updateData = {
+            CONDICION: 'Baja',
+            ESTADO: 'No Disponible',
+            ubicacion_prestamo: null,
+            observaciones: (item["observaciones"] || '') +
+                `\n[Baja] ${motivo}${evidenciaUrl ? ' - Evidencia: ' + evidenciaUrl : ''}`,
+            evidencia: evidenciaUrl || ''
+        };
 
-        evidenciaUrl = urlData?.publicUrl || null;
-    }
+        const detalleMov = `Baja - Motivo: ${motivo}${evidenciaUrl ? ' - Evidencia: ' + evidenciaUrl : ''}`;
 
-    const updateData = {
-        CONDICION: 'Baja',
-        ESTADO: 'No Disponible',
-        ubicacion_prestamo: null,
-        observaciones: (item["observaciones"] || '') +
-            `\n[Baja] ${motivo}${evidenciaUrl ? ' - Evidencia: ' + evidenciaUrl : ''}`,
-        evidencia: evidenciaUrl || ''
-    };
+        const [updateRes, insertRes] = await Promise.all([
+            supabaseClient.from(TABLA_EXTINTORES).update(updateData).eq('N', no),
+            supabaseClient.from(TABLA_MOVIMIENTOS)
+                .insert({ n_extintor: no, tipo: 'baja', personal: 'Sistema', detalle: detalleMov, activo: false })
+                .select()
+                .single()
+        ]);
 
-    const { error } = await supabaseClient
-        .from(TABLA_EXTINTORES)
-        .update(updateData)
-        .eq('N', no);
-        if (error) { console.error(error); await showGenericModal('Error al dar de baja: ' + error.message, 'Error'); return; }
-        await supabaseClient.from(TABLA_MOVIMIENTOS).insert({ n_extintor: no, tipo: 'baja', personal: 'Sistema', detalle: `Baja - Motivo: ${motivo}${evidenciaUrl ? ' - Evidencia: ' + evidenciaUrl : ''}`, activo: false });
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: no, tipo: 'Baja', personal: 'Sistema', detalle: `Motivo: ${motivo}` });
+        if (updateRes.error) throw new Error('Error al dar de baja: ' + updateRes.error.message);
+        if (insertRes.error) throw new Error('Error al registrar movimiento: ' + insertRes.error.message);
+
+        // 3) Actualizar SOLO en memoria (sin refetch)
+        const idx = misDatos.findIndex(x => String(x.N) === no);
+        if (idx !== -1) misDatos[idx] = { ...misDatos[idx], ...updateData };
+
+        historialCompleto.unshift({
+            id: insertRes.data?.id,
+            fecha: new Date().toLocaleString('es-ES'),
+            no: no,
+            tipo: 'Baja',
+            personal: 'Sistema',
+            detalle: detalleMov
+        });
+
+        // 4) Cerrar modal y refrescar UI local
         closeBajaModal();
-        await showGenericModal('Extintor dado de baja correctamente.', 'Éxito');
-        await refreshData();
-        await cargarDatosSecundarios();
         applyFilters();
+
+        await showGenericModal('Extintor dado de baja correctamente.', 'Éxito');
+
+    } catch (err) {
+        console.error(err);
+        await showGenericModal(err.message || 'Error inesperado.', 'Error');
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = textoOriginal;
     }
+}
 
     function abrirNuevoReemplazo() {
         if (!isAdmin || currentItemIndex === null) return;
@@ -3104,23 +3154,132 @@ if (existente) {
         nuevo['ubicacion_prestamo'] = `Préstamo a: ${original["AREA RESPONSABLE"] || 'Sin responsable'} | Reemplaza al N ${noOriginal}`;
         nuevo['observaciones'] = `Creado como reemplazo del extintor ${noOriginal}`;
         Object.keys(nuevo).forEach(k => { if (nuevo[k] === '') nuevo[k] = null; });
-        const { error: insertErr } = await supabaseClient.from(TABLA_EXTINTORES).insert([nuevo]);
-        if (insertErr) { console.error(insertErr); await showGenericModal('Error al crear el nuevo extintor: ' + insertErr.message, 'Error'); return; }
-        const updateOriginal = { ubicacion_prestamo: 'Mantenimiento / Almacén SST', CONDICION: 'Reemplazado', ESTADO: 'Almacén SST', observaciones: (original["observaciones"] || '') + `\nReemplazado por nuevo extintor N° ${numeroNuevo}` };
-        const { error: updateErr } = await supabaseClient.from(TABLA_EXTINTORES).update(updateOriginal).eq('N', noOriginal);
-        if (updateErr) { console.error(updateErr); await showGenericModal('Error al actualizar el extintor original: ' + updateErr.message, 'Error'); return; }
-        await supabaseClient.from(TABLA_MOVIMIENTOS).insert([
-            { n_extintor: noOriginal, tipo: 'prestamo_interno', personal: 'Sistema', motivo: 'Reemplazado', reemplazo: numeroNuevo, responsable_destino: 'Almacén SST', ubicacion_destino: 'Mantenimiento / Almacén SST', detalle: `Extintor ${noOriginal} reemplazado por nuevo extintor ${numeroNuevo}`, activo: true },
-            { n_extintor: numeroNuevo, tipo: 'prestamo_interno', personal: 'Sistema', motivo: 'Reemplazo', reemplazo: noOriginal, responsable_destino: original["AREA RESPONSABLE"] || 'Sin responsable', ubicacion_destino: `Préstamo a: ${original["AREA RESPONSABLE"] || 'Sin responsable'} | Reemplaza al N ${noOriginal}`, detalle: `Nuevo extintor ${numeroNuevo} creado para reemplazar a ${noOriginal}`, activo: true }
+                // 1) Insertar el nuevo extintor y capturar la fila creada
+        const { data: insertData, error: insertErr } = await supabaseClient
+            .from(TABLA_EXTINTORES)
+            .insert([nuevo])
+            .select()
+            .single();
+
+        if (insertErr) {
+            console.error(insertErr);
+            await showGenericModal('Error al crear el nuevo extintor: ' + insertErr.message, 'Error');
+            return;
+        }
+
+        // 2) Preparar update del original + los 2 movimientos
+        const updateOriginal = {
+            ubicacion_prestamo: 'Mantenimiento / Almacén SST',
+            CONDICION: 'Reemplazado',
+            ESTADO: 'Almacén SST',
+            observaciones: (original["observaciones"] || '') + `\nReemplazado por nuevo extintor N° ${numeroNuevo}`
+        };
+
+        const detalleOriginal = `Extintor ${noOriginal} reemplazado por nuevo extintor ${numeroNuevo}`;
+        const detalleNuevo = `Nuevo extintor ${numeroNuevo} creado para reemplazar a ${noOriginal}`;
+        const responsableOriginal = original["AREA RESPONSABLE"] || 'Sin responsable';
+
+        const [updRes, movRes] = await Promise.all([
+            supabaseClient.from(TABLA_EXTINTORES).update(updateOriginal).eq('N', noOriginal),
+            supabaseClient.from(TABLA_MOVIMIENTOS).insert([
+                {
+                    n_extintor: noOriginal,
+                    tipo: 'prestamo_interno',
+                    personal: 'Sistema',
+                    motivo: 'Reemplazado',
+                    reemplazo: numeroNuevo,
+                    responsable_destino: 'Almacén SST',
+                    ubicacion_destino: 'Mantenimiento / Almacén SST',
+                    detalle: detalleOriginal,
+                    activo: true
+                },
+                {
+                    n_extintor: numeroNuevo,
+                    tipo: 'prestamo_interno',
+                    personal: 'Sistema',
+                    motivo: 'Reemplazo',
+                    reemplazo: noOriginal,
+                    responsable_destino: responsableOriginal,
+                    ubicacion_destino: `Préstamo a: ${responsableOriginal} | Reemplaza al N ${noOriginal}`,
+                    detalle: detalleNuevo,
+                    activo: true
+                }
+            ]).select()
         ]);
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: noOriginal, tipo: 'Reemplazo por nuevo', personal: 'Sistema', detalle: `Reemplazado por nuevo extintor ${numeroNuevo}` });
-        historialCompleto.push({ fecha: new Date().toLocaleString('es-ES'), no: numeroNuevo, tipo: 'Nuevo reemplazo', personal: 'Sistema', detalle: `Creado para reemplazar a ${noOriginal}` });
+
+        if (updRes.error) {
+            console.error(updRes.error);
+            await showGenericModal('Error al actualizar el extintor original: ' + updRes.error.message, 'Error');
+            return;
+        }
+        if (movRes.error) {
+            console.error(movRes.error);
+            await showGenericModal('Error al registrar movimientos: ' + movRes.error.message, 'Error');
+            return;
+        }
+
+        // 3) Actualizar SOLO en memoria
+        const idxOriginal = misDatos.findIndex(x => String(x.N) === noOriginal);
+        if (idxOriginal !== -1) {
+            misDatos[idxOriginal] = { ...misDatos[idxOriginal], ...updateOriginal };
+        }
+        if (insertData) {
+            misDatos.push(insertData);
+            misDatos.sort(compararNumeros);
+        }
+
+        const fecha = new Date().toLocaleString('es-ES');
+
+        // Movimientos activos en memoria
+        movimientosPrestamoActivos[noOriginal] = {
+            tipo: 'prestamo_interno',
+            personal: 'Sistema',
+            motivo: 'Reemplazado',
+            reemplazo: numeroNuevo,
+            responsable_destino: 'Almacén SST',
+            ubicacion_destino: 'Mantenimiento / Almacén SST',
+            fecha: fecha
+        };
+        movimientosActivos[noOriginal] = movimientosPrestamoActivos[noOriginal];
+
+        movimientosPrestamoActivos[numeroNuevo] = {
+            tipo: 'prestamo_interno',
+            personal: 'Sistema',
+            motivo: 'Reemplazo',
+            reemplazo: noOriginal,
+            responsable_destino: responsableOriginal,
+            ubicacion_destino: `Préstamo a: ${responsableOriginal} | Reemplaza al N ${noOriginal}`,
+            fecha: fecha
+        };
+        movimientosActivos[numeroNuevo] = movimientosPrestamoActivos[numeroNuevo];
+
+        // Historial en memoria (más reciente primero)
+        const movsInsertados = movRes.data || [];
+        historialCompleto.unshift(
+            {
+                id: movsInsertados[1]?.id,
+                fecha: fecha,
+                no: numeroNuevo,
+                tipo: 'Nuevo reemplazo',
+                personal: 'Sistema',
+                detalle: detalleNuevo
+            },
+            {
+                id: movsInsertados[0]?.id,
+                fecha: fecha,
+                no: noOriginal,
+                tipo: 'Reemplazo por nuevo',
+                personal: 'Sistema',
+                detalle: detalleOriginal
+            }
+        );
+
+        // 4) Cerrar y refrescar UI
         closeNuevoReemplazoModal();
-        await showGenericModal(`Nuevo extintor ${numeroNuevo} creado y reemplazo registrado.`, 'Éxito');
-        await refreshData();
-        await cargarDatosSecundarios();
         poblarResponsables();
         applyFilters();
+
+        await showGenericModal(`Nuevo extintor ${numeroNuevo} creado y reemplazo registrado.`, 'Éxito');
     }
 
     // ============================================================
