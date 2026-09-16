@@ -262,12 +262,12 @@
             transition: border-color 0.2s, box-shadow 0.2s;
             color: #0f172a;
         }
-        .filter-group input:focus,
-        .filter-group select:focus {
-            outline: none;
-            border-color: #4caf50;
-            box-shadow: 0 0 0 3px rgba(76,175,80,0.15);
-        }
+        .filter-group select:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
         .date-filter-wrap {
             position: relative;
             flex: 1 1 200px;
@@ -965,21 +965,22 @@
 <div id="prompt-modal" class="modal"><div class="modal-content" style="max-width:450px;"><div class="modal-header"><h2 id="prompt-modal-title" style="font-size:1.2rem;">Ingrese información</h2><button class="modal-close" onclick="closePromptModal()">&times;</button></div><div class="modal-section"><div id="prompt-modal-message" style="margin-bottom:12px; font-size:0.95rem; color:#334155;"></div><div class="form-group"><input type="text" id="prompt-modal-input" placeholder="Escriba aquí..." style="width:100%; padding:12px; border:1px solid #d1d9e6; border-radius:12px; font-size:1rem;"></div></div><div class="modal-actions" style="justify-content:center;"><button class="btn btn-primary" onclick="acceptPrompt()">Aceptar</button><button class="btn btn-secondary" onclick="closePromptModal()">Cancelar</button></div></div></div>
 
 <script>
-    function actualizarVisibilidadFiltros() {
-    const numeroGroup = document.getElementById('numero-filter')?.closest('.filter-group');
-    const dateWrap = document.querySelector('.date-filter-wrap');
-    const condicionGroup = document.getElementById('condicion-filter')?.closest('.filter-group');
+    function actualizarEstadoCondicionFilter() {
+    const condicionSelect = document.getElementById('condicion-filter');
+    if (!condicionSelect) return;
 
-    const display = isAdmin ? '' : 'none';
+    // Admin: siempre habilitado
+    if (isAdmin) {
+        condicionSelect.disabled = false;
+        return;
+    }
 
-    if (numeroGroup) numeroGroup.style.display = display;
-    if (dateWrap) dateWrap.style.display = display;
-    if (condicionGroup) condicionGroup.style.display = display;
+    // Público: solo habilitado si hay área seleccionada
+    const tieneArea = responsableFilter.value.trim() !== '';
+    condicionSelect.disabled = !tieneArea;
 
-    // Limpieza opcional para modo público
-    if (!isAdmin) {
-        if (numeroFilter) numeroFilter.value = '';
-        if (condicionFilter) condicionFilter.value = '';
+    if (!tieneArea) {
+        condicionSelect.value = '';
     }
 }
     // ============================================================
@@ -1026,6 +1027,24 @@
     let modoGarantiaForzado = false;
 
     let editorModoCreacion = false;
+
+    function actualizarVisibilidadFiltros() {
+    const numeroGroup = document.getElementById('numero-filter')?.closest('.filter-group');
+    const dateWrap = document.querySelector('.date-filter-wrap');
+    const condicionGroup = document.getElementById('condicion-filter')?.closest('.filter-group');
+
+    // Nº extintor y fecha solo para admin
+    const displayAdmin = isAdmin ? '' : 'none';
+    if (numeroGroup) numeroGroup.style.display = displayAdmin;
+    if (dateWrap) dateWrap.style.display = displayAdmin;
+
+    // Condición: siempre visible (se deshabilita si no hay área en modo público)
+    if (condicionGroup) condicionGroup.style.display = '';
+
+    if (!isAdmin && numeroFilter) numeroFilter.value = '';
+
+    actualizarEstadoCondicionFilter();
+}
 
     // ============================================================
     //  COMPONENTE AUTOCOMPLETADO REUTILIZABLE
@@ -1582,13 +1601,18 @@
     //  FILTROS Y RENDER
     // ============================================================
     function applyFilters() {
+    // Sincroniza enabled/disabled del filtro de condición
+    actualizarEstadoCondicionFilter();
+
     const selectedResponsable = responsableFilter.value.trim();
 
     // En modo público solo se usa el filtro de área
     const selectedNumero = (isAdmin && numeroFilter) ? numeroFilter.value.trim().toLowerCase() : "";
     const selectedDesde = isAdmin ? (calPendingDesde || "") : "";
     const selectedHasta = isAdmin ? (calPendingHasta || "") : "";
-    const selectedCondicion = isAdmin ? condicionFilter.value : "";
+
+    // Condición: activo en admin siempre; en público solo si hay área
+    const selectedCondicion = (isAdmin || selectedResponsable) ? condicionFilter.value : "";
 
     currentFilteredData = misDatos.filter(item => {
         const no = String(item["N"]);
@@ -2131,7 +2155,7 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     
     const itemA = misDatos[currentItemIndex];
     const noA = String(itemA["N"]);
-    
+
     const estadoActual = itemA["ESTADO"] || "";
     if (estadoActual === "Prestado" || estadoActual === "Almacén SST") { 
         await showGenericModal('Este extintor ya tiene un préstamo activo.', 'Error'); 
