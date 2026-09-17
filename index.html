@@ -442,6 +442,48 @@
             background: #cbd5e1;
             cursor: not-allowed;
         }
+        /* ===== SCROLLBAR PERSONALIZADO ===== */
+                        .scroll-x {
+    overflow-x: auto;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 4px;
+}   
+#history-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    height: 88vh;
+    padding-bottom: 20px;
+}
+#history-modal .scroll-x {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-bottom: 4px;
+}
+#history-modal .modal-actions {
+    margin-top: 0;
+    padding-top: 12px;
+    flex-shrink: 0;
+}  
+        .scroll-x::-webkit-scrollbar {
+            height: 14px;
+        }
+        .scroll-x::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 8px;
+        }
+        .scroll-x::-webkit-scrollbar-thumb {
+            background: #64748b;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+        .scroll-x::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+        .scroll-x table {
+            min-width: 1100px;
+        }
 
         /* ===== CONTADOR ===== */
         .counter {
@@ -522,6 +564,8 @@
         .badge-garantia { background: #dbeafe; color: #1e40af; }
         .badge-prestado { background: #ffedd5; color: #9a3412; }
         .badge-almacen { background: #dbeafe; color: #1e40af; }
+        .badge-garantia-pendiente { background:#fef3c7; color:#92400e; border:1px dashed #f59e0b; }
+        .badge-garantia-recibido  { background:#dcfce7; color:#166534; }
 
         /* ===== MODALES ===== */
         .modal {
@@ -914,7 +958,24 @@
         </div>
     </div>
 
-    <div class="counter" id="counter-display">Mostrando <strong>0</strong> de <strong>0</strong> extintores</div>
+        <div class="counter" id="counter-display">Mostrando <strong>0</strong> de <strong>0</strong> extintores</div>
+
+    <div id="garantia-alert" style="display:none; background:linear-gradient(135deg,#fef3c7,#fde68a);
+         border-left:4px solid #f59e0b; padding:12px 18px; border-radius:12px; margin-bottom:16px;
+         align-items:center; gap:12px; flex-wrap:wrap;">
+        <i class="fas fa-hourglass-half" style="color:#b45309; font-size:1.3rem;"></i>
+        <div style="flex:1; min-width:200px;">
+            <strong style="color:#78350f;">Extintores pendientes al almacén</strong>
+            <span id="garantia-pending-count" style="color:#78350f; font-weight:700;">0</span>
+            <span style="color:#92400e; font-size:0.85rem; display:block;">
+                El extintor de garantía ya fue entregado, pero el original aún no ha sido traído del área.
+            </span>
+        </div>
+        <button class="btn" style="background:#f59e0b; color:#fff; padding:8px 16px; font-size:0.85rem;"
+                onclick="verGarantiasPendientes()">
+            <i class="fas fa-list"></i> Ver pendientes
+        </button>
+    </div>
 
     <div class="table-wrapper">
         <table>
@@ -933,8 +994,36 @@
         </table>
     </div>
 </div>
-
 <!-- ===== MODALES ===== -->
+ <div id="garantias-pendientes-modal" class="modal">
+    <div class="modal-content" style="max-width:900px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-hourglass-half" style="color:#f59e0b;"></i> Extintores pendientes al almacén</h2>
+            <button class="modal-close" onclick="closeGarantiasPendientesModal()">&times;</button>
+        </div>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:10px;">
+            Estos extintores tienen una garantía activa pero el original <strong>aún no ha sido traído del área</strong>.
+        </p>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead style="background:#f1f5f9;">
+                    <tr>
+                        <th>N Extintor</th>
+                        <th>Área Responsable</th>
+                        <th>Extintor Garantía</th>
+                        <th>Personal</th>
+                        <th>Fecha Registro</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="garantias-pendientes-body"></tbody>
+            </table>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeGarantiasPendientesModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
 <!-- Detalles -->
 <div id="detail-modal" class="modal"><div class="modal-content"><div class="modal-header"><h2><i class="fas fa-info-circle" style="color:#3b82f6;"></i> Detalles del Extintor</h2><button class="modal-close" onclick="closeModal()">&times;</button></div><div id="modal-body"></div><div class="modal-actions" id="modal-actions"></div></div></div>
 
@@ -954,11 +1043,32 @@
 <div id="loan-modal" class="modal"><div class="modal-content"><div class="modal-header"><h2><i class="fas fa-handshake" style="color:#f59e0b;"></i> Registrar Préstamo</h2><button class="modal-close" onclick="closeLoanModal()">&times;</button></div><div class="modal-section"><div id="tipo-prestamo-wrapper"><div class="form-group"><label for="tipo-prestamo">Tipo de préstamo:</label><select id="tipo-prestamo" onchange="toggleCamposPrestamo()"><option value="interno">Préstamo interno</option><option value="garantia">Extintor de garantía</option><option value="unidad">Préstamo a ubicación/unidad</option></select></div></div><div id="tipo-prestamo-fijo" style="display:none;"><p style="font-weight:600; color:#0ea5e9; font-size:1rem;"><i class="fas fa-tools"></i> Extintor de garantía</p></div><div id="campos-interno"><div class="form-group"><label for="personal-cambio">Personal a cargo del cambio:</label><input type="text" id="personal-cambio" placeholder="Nombre del personal"></div><div class="form-group"><label for="motivo-select">Motivo:</label><select id="motivo-select"><option value="Usado">Usado</option><option value="Despresurizado">Despresurizado</option><option value="Dañado">Dañado</option></select></div><div class="form-group"><label for="extintor-reemplazo">Código del extintor que lo reemplazará (STOCK):</label><input type="text" id="extintor-reemplazo" placeholder="N de extintor de STOCK"></div><div class="form-group"><label for="proxima-recarga">Próxima fecha de recarga (MM/AAAA):</label><input type="text" id="proxima-recarga" placeholder="Ej. 03/2028"></div></div><div id="campos-garantia" style="display:none;"><div class="form-group"><label for="garantia-personal">Personal a cargo del cambio:</label><input type="text" id="garantia-personal" placeholder="Nombre del personal"></div><div class="form-group"><label for="garantia-reemplazo">Número del extintor de garantía:</label><input type="text" id="garantia-reemplazo" placeholder="Ej. G-001, REC-01, etc."></div></div><div id="campos-unidad" style="display:none;"><div class="form-group"><label for="unidad-area">Área:</label><div class="autocomplete-wrap" id="unidad-area-autocomplete-wrap"><input type="text" id="unidad-area" placeholder="Escriba o seleccione un área..." autocomplete="off"><button type="button" class="autocomplete-clear" id="unidad-area-clear" aria-label="Limpiar"><i class="fas fa-times"></i></button><div class="autocomplete-dropdown" id="unidad-area-dropdown"></div></div></div><div class="form-group"><label for="unidad-responsable">Responsable de la solicitud:</label><input type="text" id="unidad-responsable" placeholder="Nombre del responsable"></div><div class="form-group"><label for="unidad-asignada">Ubicación/unidad asignada:</label><input type="text" id="unidad-asignada" placeholder="Escriba la ubicación o unidad"></div></div></div><div class="modal-actions"><button class="btn btn-primary" onclick="guardarPrestamo()"><i class="fas fa-check"></i> Guardar</button><button class="btn btn-secondary" onclick="closeLoanModal()">Cancelar</button></div></div></div>
 
 <!-- Historial -->
-<div id="history-modal" class="modal"><div class="modal-content" style="max-width:900px;"><div class="modal-header"><h2><i class="fas fa-history" style="color:#3b82f6;"></i> Historial de Movimientos</h2><button class="modal-close" onclick="closeHistoryModal()">&times;</button></div><div style="overflow-x:auto;"><table><thead style="background:#f1f5f9;"><tr><th>Fecha</th><th>N Extintor</th><th>Tipo</th><th>Personal</th><th>Detalle</th><th style="width:80px;">Acción</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeHistoryModal()">Cerrar</button></div></div></div>
-
+<div id="history-modal" class="modal"><div class="modal-content" style="max-width:900px;"><div class="modal-header"><h2><i class="fas fa-history" style="color:#3b82f6;"></i> Historial de Movimientos</h2><button class="modal-close" onclick="closeHistoryModal()">&times;</button></div><div class="scroll-x"><table><thead style="background:#f1f5f9;"><tr><th>Fecha</th><th>N Extintor</th><th>Tipo</th><th>Personal</th><th>Detalle</th><th style="width:80px;">Acción</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeHistoryModal()">Cerrar</button></div></div></div>
 <!-- Observaciones generales -->
-<div id="observations-modal" class="modal"><div class="modal-content" style="max-width:900px;"><div class="modal-header"><h2><i class="fas fa-clipboard-list" style="color:#f59e0b;"></i> Listado General de Observaciones</h2><button class="modal-close" onclick="closeObservationsModal()">&times;</button></div><div style="overflow-x:auto;"><table><thead style="background:#f1f5f9;"><tr><th>Fecha</th><th>N Extintor</th><th>Observación</th><th>Acción</th></tr></thead><tbody id="observations-body"></tbody></table></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeObservationsModal()">Cerrar</button></div></div></div>
-
+<div id="observations-modal" class="modal">
+    <div class="modal-content" style="max-width:900px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-clipboard-list" style="color:#f59e0b;"></i> Listado General de Observaciones</h2>
+            <button class="modal-close" onclick="closeObservationsModal()">&times;</button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead style="background:#f1f5f9;">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>N Extintor</th>
+                        <th>Observación</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="observations-body"></tbody>
+            </table>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeObservationsModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
 <!-- Genéricos -->
 <div id="generic-modal" class="modal"><div class="modal-content" style="max-width:450px; text-align:center;"><div class="modal-header" style="border-bottom:none; padding-bottom:5px;"><h2 id="generic-modal-title" style="font-size:1.2rem; margin:0;">Aviso</h2><button class="modal-close" onclick="closeGenericModal()">&times;</button></div><div id="generic-modal-body" style="padding:16px 0; font-size:1rem; color:#0f172a;"></div><div class="modal-actions" style="justify-content:center;" id="generic-modal-actions"><button class="btn btn-primary" id="generic-modal-confirm-btn" onclick="confirmGenericModal()">Aceptar</button><button class="btn btn-secondary" id="generic-modal-cancel-btn" onclick="cancelGenericModal()" style="display:none;">Cancelar</button></div></div></div>
 
@@ -1475,12 +1585,34 @@
         if (condicion === "Baja") return "Baja";
         return isItemExpired(item) ? "Vencido" : "Vigente";
     }
-    function getEstadoItem(item) { if (!isAdmin) return "-"; const estado = item["ESTADO"] || ""; if (estado === "Prestado" || estado === "Almacén SST") return estado; return ""; }
-    function getBadgeClass(condicion) {
-        const map = { 'Vigente': 'badge-vigente', 'Vencido': 'badge-vencido', 'Usado': 'badge-usado', 'Despresurizado': 'badge-despresurizado', 'Dañado': 'badge-danado', 'Mantenimiento': 'badge-mantenimiento', 'Baja': 'badge-baja', 'Garantía': 'badge-garantia' };
-        return map[condicion] || 'badge-vigente';
-    }
-    function getEstadoBadgeClass(estado) { if (estado === 'Prestado') return 'badge-prestado'; if (estado === 'Almacén SST') return 'badge-almacen'; return ''; }
+    function getEstadoItem(item) {
+    if (!isAdmin) return "-";
+    const estado = item["ESTADO"] || "";
+    if (estado === "Prestado" || estado === "Almacén SST" ||
+        estado === "Extintor pendiente" || estado === "Garantía - Recibido") return estado;
+    return "";
+}
+function getBadgeClass(condicion) {
+    const map = {
+        'Vigente': 'badge-vigente',
+        'Vencido': 'badge-vencido',
+        'Usado': 'badge-usado',
+        'Despresurizado': 'badge-despresurizado',
+        'Dañado': 'badge-danado',
+        'Mantenimiento': 'badge-mantenimiento',
+        'Baja': 'badge-baja',
+        'Garantía': 'badge-garantia'
+    };
+    return map[condicion] || 'badge-vigente';
+}
+
+function getEstadoBadgeClass(estado) {
+    if (estado === 'Prestado') return 'badge-prestado';
+    if (estado === 'Almacén SST') return 'badge-almacen';
+    if (estado === 'Extintor pendiente') return 'badge-garantia-pendiente';
+    if (estado === 'Garantía - Recibido') return 'badge-garantia-recibido';
+    return '';
+}
     function limpiar(valor) { return (valor !== undefined && valor !== null && String(valor).trim() !== "") ? valor : "-"; }
 
     function getUbicacionAsignada(item, esAdmin) {
@@ -1652,7 +1784,8 @@ return true;
 
     renderTable(currentFilteredData);
     updateCounter(currentFilteredData.length, misDatos.length);
-}
+    actualizarAlertaGarantias();   // ✅ NUEVO
+    }
 
     function compararNumeros(a, b) {
         const na = Number(String(a["N"] ?? "").replace(",", "."));
@@ -2054,7 +2187,10 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
                 if (prestamoActivo) {
                     botonesAccion += `<button class="btn btn-primary" onclick="finalizarPrestamo(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Préstamo</button>`;
                 }
-                if (garantiaActiva) {
+                                if (garantiaActiva) {
+                    if (item["ESTADO"] === 'Extintor pendiente') {
+                        botonesAccion += `<button class="btn btn-warning" onclick="marcarGarantiaRecibida(${currentItemIndex})"><i class="fas fa-truck"></i> Confirmar llegada a mantenimiento</button>`;
+                    }
                     botonesAccion += `<button class="btn btn-success" onclick="finalizarGarantia(${currentItemIndex})"><i class="fas fa-check-circle"></i> Finalizar Garantía</button>`;
                 }
                 botonesAccion += `<button class="btn" style="background:#7c3aed;color:white;" onclick="abrirEditor(${currentItemIndex})"><i class="fas fa-edit"></i> Editar registro</button>`;
@@ -2243,67 +2379,170 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     applyFilters();
 }
 
-    async function guardarPrestamoGarantia() {
-    const personal = document.getElementById('garantia-personal').value.trim();
-    const reemplazo = document.getElementById('garantia-reemplazo').value.trim();
-    if (!personal || !reemplazo) { 
-        await showGenericModal('Por favor complete todos los campos.', 'Aviso'); 
-        return; 
-    }
-    const item = misDatos[currentItemIndex];
-    const no = String(item["N"]);
-    
-    if (movimientosGarantiaActivos[no]) { 
-        await showGenericModal('Este extintor ya tiene una garantía activa.', 'Error'); 
-        return; 
-    }
-    
-    const detalle = `Garantía - Personal: ${personal} - Extintor reemplazo: ${reemplazo}`;
-    const { data: movInsertado, error } = await supabaseClient
-        .from(TABLA_MOVIMIENTOS)
-        .insert({ 
-            n_extintor: no, 
-            tipo: 'garantia', 
-            personal: personal, 
-            reemplazo: reemplazo, 
-            detalle: detalle, 
-            activo: true 
-        })
-        .select()
-        .single();
-    
-    if (error) { 
-        console.error(error); 
-        await showGenericModal('Error al registrar la garantía: ' + error.message, 'Error'); 
-        return; 
-    }
-    
-    // Actualizar movimientos activos en memoria (sin consultar Supabase)
-    const fecha = new Date().toLocaleString('es-ES');
-    movimientosGarantiaActivos[no] = {
-    reemplazo: reemplazo,
-    personal: personal,
-    fecha: fecha
-};
-if (!movimientosPrestamoActivos[no]) {
-    movimientosActivos[no] = movimientosGarantiaActivos[no];
-}
-    
-    // Agregar al historial local (sin recargar todo)
-    historialCompleto.unshift({
-        id: movInsertado ? movInsertado.id : undefined,
-        fecha: fecha,
-        no: no,
-        tipo: 'garantia',
-        personal: personal,
-        detalle: detalle
-    });
-    
-    await showGenericModal('Garantía registrada correctamente.', 'Éxito');
-    closeLoanModal();
-    applyFilters();
-}
+        async function guardarPrestamoGarantia() {
+        const personal = document.getElementById('garantia-personal').value.trim();
+        const reemplazo = document.getElementById('garantia-reemplazo').value.trim();
+        if (!personal || !reemplazo) { 
+            await showGenericModal('Por favor complete todos los campos.', 'Aviso'); 
+            return; 
+        }
+        const item = misDatos[currentItemIndex];
+        const no = String(item["N"]);
+        
+        if (movimientosGarantiaActivos[no]) { 
+            await showGenericModal('Este extintor ya tiene una garantía activa.', 'Error'); 
+            return; 
+        }
 
+        // 👇 Feedback visual: spinner en el botón
+        const btns = loanModal.querySelectorAll('.modal-actions .btn');
+        const saveBtn = btns[0];
+        const textoOriginal = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+        try {
+            const detalle = `Garantía - Personal: ${personal} - Extintor reemplazo: ${reemplazo}`;
+            const updateEstado = { ESTADO: 'Extintor pendiente' };
+            const fecha = new Date().toLocaleString('es-ES');
+
+            // 🚀 Los 2 viajes a Supabase EN PARALELO
+            const [movRes, updRes] = await Promise.all([
+                supabaseClient
+                    .from(TABLA_MOVIMIENTOS)
+                    .insert({ 
+                        n_extintor: no, 
+                        tipo: 'garantia', 
+                        personal: personal, 
+                        reemplazo: reemplazo, 
+                        detalle: detalle, 
+                        activo: true 
+                    })
+                    .select()
+                    .single(),
+                supabaseClient
+                    .from(TABLA_EXTINTORES)
+                    .update(updateEstado)
+                    .eq('N', no)
+            ]);
+
+            if (movRes.error) throw movRes.error;
+            if (updRes.error) throw updRes.error;
+
+            const movInsertado = movRes.data;
+
+            // Actualizar en memoria
+            const idxEstado = misDatos.findIndex(it => String(it["N"]) === no);
+            if (idxEstado !== -1) {
+                misDatos[idxEstado] = { ...misDatos[idxEstado], ...updateEstado };
+            }
+            movimientosGarantiaActivos[no] = {
+                reemplazo: reemplazo,
+                personal: personal,
+                fecha: fecha
+            };
+            if (!movimientosPrestamoActivos[no]) {
+                movimientosActivos[no] = movimientosGarantiaActivos[no];
+            }
+            
+            historialCompleto.unshift({
+                id: movInsertado ? movInsertado.id : undefined,
+                fecha: fecha,
+                no: no,
+                tipo: 'garantia',
+                personal: personal,
+                detalle: detalle
+            });
+
+            // Cerrar modal + refrescar ANTES del mensaje
+            closeLoanModal();
+            applyFilters();
+            
+            await showGenericModal('Garantía registrada correctamente.', 'Éxito');
+
+        } catch (err) {
+            console.error(err);
+            await showGenericModal('Error al registrar la garantía: ' + (err.message || err), 'Error');
+        } finally {
+            // 👇 Pase lo que pase, restaurar el botón
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = textoOriginal;
+        }
+    }
+        async function marcarGarantiaRecibida(itemIndex) {
+    if (!isAdmin) return;
+    const item = misDatos[itemIndex];
+    if (!item) return;
+    const no = String(item["N"]);
+
+    // Validaciones
+    if (!movimientosGarantiaActivos[no]) {
+        await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso');
+        return;
+    }
+    if (item["ESTADO"] === 'Garantía - Recibido' || item["ESTADO"] === 'Retorno - Recibido') {
+        await showGenericModal('Este extintor ya fue marcado como recibido.', 'Aviso');
+        return;
+    }
+
+    // Confirmación
+    const confirmar = await showGenericModal(
+        `¿Confirmar que el extintor N° ${no} fue retirado del área y traído a almacén?`,
+        'Confirmar retorno del original',
+        'Sí, recibido',
+        'Cancelar'
+    );
+    if (!confirmar) return;
+
+    // 👇 Deshabilitamos los botones ANTES de entrar al try
+    const allBtns = document.querySelectorAll('.modal.active .modal-actions .btn');
+    allBtns.forEach(b => b.disabled = true);
+
+    try {
+        const fecha = new Date().toLocaleString('es-ES');
+        const updateData = { ESTADO: 'Garantía - Recibido' };
+
+        // Los dos viajes en paralelo
+        const [updateRes, insertRes] = await Promise.all([
+            supabaseClient.from(TABLA_EXTINTORES).update(updateData).eq('N', no),
+            supabaseClient.from(TABLA_MOVIMIENTOS).insert({
+                n_extintor: no,
+                tipo: 'garantia_retiro',
+                personal: 'Sistema',
+                detalle: `Extintor ${no} retirado del área y traído a almacén`,
+                activo: false
+            }).select().single()
+        ]);
+
+        if (updateRes.error) throw updateRes.error;
+
+        const movInsertado = insertRes.data;
+
+        const idx = misDatos.findIndex(it => String(it["N"]) === no);
+        if (idx !== -1) misDatos[idx] = { ...misDatos[idx], ...updateData };
+
+        historialCompleto.unshift({
+            id: movInsertado?.id,
+            fecha: fecha,
+            no: no,
+            tipo: 'Garantía - Retiro',
+            personal: 'Sistema',
+            detalle: `Extintor ${no} retirado del área`
+        });
+
+        closeModal();
+        applyFilters();
+        await showGenericModal('Retorno confirmado correctamente.', 'Éxito');
+
+    } catch (err) {
+        console.error(err);
+        await showGenericModal('Error: ' + (err.message || err), 'Error');
+
+    } finally {
+        // ✅ Pase lo que pase, reactivamos los botones
+        allBtns.forEach(b => b.disabled = false);
+    }
+}
     async function guardarPrestamoUnidad() {
     const area = document.getElementById('unidad-area').value.trim();
     const responsable = document.getElementById('unidad-responsable').value.trim();
@@ -2409,7 +2648,58 @@ if (!movimientosPrestamoActivos[no]) {
     // ============================================================
     //  FINALIZAR GARANTÍA Y PRÉSTAMO
     // ============================================================
-    async function finalizarGarantia(itemIndex) {
+        function getGarantiasPendientes() {
+        return misDatos.filter(item =>
+            (item["ESTADO"] || "") === "Extintor pendiente" &&
+            movimientosGarantiaActivos[String(item["N"])]
+        );
+    }
+
+    function actualizarAlertaGarantias() {
+        const alert = document.getElementById('garantia-alert');
+        if (!alert) return;
+        if (!isAdmin) { alert.style.display = 'none'; return; }
+
+        const count = getGarantiasPendientes().length;
+        document.getElementById('garantia-pending-count').textContent = count;
+        alert.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    function verGarantiasPendientes() {
+        const pendientes = getGarantiasPendientes();
+        const body = document.getElementById('garantias-pendientes-body');
+        body.innerHTML = '';
+
+        if (pendientes.length === 0) {
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">No hay garantías pendientes de retiro.</td></tr>`;
+        } else {
+            pendientes.forEach(item => {
+                const no = String(item["N"]);
+                const g = movimientosGarantiaActivos[no] || {};
+                const idx = misDatos.indexOf(item);
+                body.innerHTML += `
+                    <tr>
+                        <td><strong>${no}</strong></td>
+                        <td>${item["AREA RESPONSABLE"] || '-'}</td>
+                        <td>${g.reemplazo || '-'}</td>
+                        <td>${g.personal || '-'}</td>
+                        <td>${g.fecha || '-'}</td>
+                        <td>
+                            <button class="btn btn-warning" style="padding:6px 12px; font-size:0.8rem;"
+                                onclick="closeGarantiasPendientesModal(); marcarGarantiaRecibida(${idx});">
+                                <i class="fas fa-truck"></i> Recibido
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+        }
+        document.getElementById('garantias-pendientes-modal').classList.add('active');
+    }
+
+    function closeGarantiasPendientesModal() {
+        document.getElementById('garantias-pendientes-modal').classList.remove('active');
+    }
+        async function finalizarGarantia(itemIndex) {
         const item = misDatos[itemIndex];
         const no = String(item["N"]);
         
@@ -2417,53 +2707,77 @@ if (!movimientosPrestamoActivos[no]) {
             await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso'); 
             return; 
         }
-        
-        const now = new Date();
-        const nuevoAnio = now.getFullYear() + 1;
-        const nuevoMes = now.getMonth() + 1;
-        let mesFinal = nuevoMes, anioFinal = nuevoAnio;
-        if (mesFinal > 12) { mesFinal = mesFinal - 12; anioFinal = anioFinal + 1; }
-        const nuevaFecha = `${String(mesFinal).padStart(2, '0')}/${anioFinal}`;
-        
-        const updateExtintor = await supabaseClient
-            .from(TABLA_EXTINTORES)
-            .update({ "F. VENC.": nuevaFecha, "ph_vencimiento": nuevaFecha })
-            .eq('N', no);
-        
-        if (updateExtintor.error) {
-            console.error('Error actualizando fechas:', updateExtintor.error);
-            await showGenericModal('Error al actualizar las fechas: ' + updateExtintor.error.message, 'Error');
-            return;
-        }
-        
-        const { error } = await supabaseClient
-            .from(TABLA_MOVIMIENTOS)
-            .update({ activo: false })
-            .eq('n_extintor', no)
-            .eq('tipo', 'garantia')
-            .eq('activo', true);
-        
-        if (error) {
-            console.error(error);
-            await showGenericModal('Error al finalizar la garantía: ' + error.message, 'Error');
-            return;
-        }
-        
-        await actualizarUnExtintor(no);
-        delete movimientosGarantiaActivos[no];
-        delete movimientosActivos[no];
-        
-        historialCompleto.push({
-            fecha: new Date().toLocaleString('es-ES'),
-            no: no,
-            tipo: 'Garantía finalizada',
-            personal: 'Sistema',
-            detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}`
+
+        // 👇 Feedback visual: spinner en el botón "Finalizar Garantía"
+        const allBtns = detailModal.querySelectorAll('.modal-actions .btn');
+        let saveBtn = null;
+        let textoOriginal = '';
+        allBtns.forEach(btn => {
+            if (btn.innerText.includes('Finalizar Garantía')) {
+                saveBtn = btn;
+                textoOriginal = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finalizando...';
+            } else {
+                btn.disabled = true;
+            }
         });
-        
-        await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha}`, 'Éxito');
-        closeModal();
-        applyFilters();
+
+        try {
+            const now = new Date();
+            const nuevoAnio = now.getFullYear() + 1;
+            const nuevoMes = now.getMonth() + 1;
+            let mesFinal = nuevoMes, anioFinal = nuevoAnio;
+            if (mesFinal > 12) { mesFinal = mesFinal - 12; anioFinal = anioFinal + 1; }
+            const nuevaFecha = `${String(mesFinal).padStart(2, '0')}/${anioFinal}`;
+
+            // 🚀 Los 2 viajes a Supabase EN PARALELO
+            const [updateExtintor, desactivarMov] = await Promise.all([
+                supabaseClient
+                    .from(TABLA_EXTINTORES)
+                    .update({
+                        "F. VENC.": nuevaFecha,
+                        ESTADO: null,
+                        proxima_recarga: null
+                    })
+                    .eq('N', no),
+                supabaseClient
+                    .from(TABLA_MOVIMIENTOS)
+                    .update({ activo: false })
+                    .eq('n_extintor', no)
+                    .eq('tipo', 'garantia')
+                    .eq('activo', true)
+            ]);
+
+            if (updateExtintor.error) throw updateExtintor.error;
+            if (desactivarMov.error) throw desactivarMov.error;
+            
+            await actualizarUnExtintor(no);
+            delete movimientosGarantiaActivos[no];
+            delete movimientosActivos[no];
+            
+            historialCompleto.push({
+                fecha: new Date().toLocaleString('es-ES'),
+                no: no,
+                tipo: 'Garantía finalizada',
+                personal: 'Sistema',
+                detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}`
+            });
+            
+            // Cerrar modal + refrescar ANTES del mensaje
+            closeModal();
+            applyFilters();
+            
+            await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha}`, 'Éxito');
+
+        } catch (err) {
+            console.error(err);
+            await showGenericModal('Error al finalizar la garantía: ' + (err.message || err), 'Error');
+        } finally {
+            // 👇 Pase lo que pase, restaurar botones
+            allBtns.forEach(btn => btn.disabled = false);
+            if (saveBtn && textoOriginal) saveBtn.innerHTML = textoOriginal;
+        }
     }
 
     async function finalizarPrestamo(itemIndex) {
@@ -3419,52 +3733,75 @@ extintoresReemplazados = {};
     // ============================================================
     //  INICIO
     // ============================================================
-    async function iniciarApp() {
-        const { data, error } = await supabaseClient
-            .from(TABLA_EXTINTORES)
-            .select('*')
-            .order('N');
-        
+        async function iniciarApp() {
+        // 🚀 Lanzamos las 4 queries EN PARALELO (antes eran secuenciales)
+        const [extRes, movRes, obsRes, histRes] = await Promise.all([
+            supabaseClient.from(TABLA_EXTINTORES).select('*').order('N'),
+            supabaseClient.from(TABLA_MOVIMIENTOS).select('*')
+                .eq('activo', true)
+                .in('tipo', ['prestamo_interno', 'prestamo_unidad', 'garantia']),
+            supabaseClient.from(TABLA_OBSERVACIONES).select('*')
+                .order('created_at', { ascending: false })
+                .limit(100),
+            supabaseClient.from(TABLA_MOVIMIENTOS).select('*')
+                .order('created_at', { ascending: false })
+                .limit(200)
+        ]);
+
+        const data = extRes.data;
+        const error = extRes.error;
+
         if (error) {
             tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#ef4444;">Error de Supabase: ${error.message}</td></tr>`;
             return;
         }
-        
+
         if (!data || data.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#94a3b8;">La tabla de Supabase está vacía o no tiene registros</td></tr>`;
             return;
         }
-        
+
         misDatos = [...data].sort(compararNumeros);
-        
-        await cargarMovimientosActivos();
-        
-        const { data: obsData } = await supabaseClient
-            .from(TABLA_OBSERVACIONES)
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(100);
-        
-        observacionesPublicas = (obsData || []).map(o => ({ 
-            id: o.id, 
-            no: o.n_extintor, 
-            texto: o.texto, 
-            fecha: new Date(o.created_at).toLocaleDateString('es-ES') 
+
+        // Procesar movimientos activos (antes lo hacía cargarMovimientosActivos)
+        movimientosPrestamoActivos = {};
+        movimientosGarantiaActivos = {};
+        movimientosActivos = {};
+
+        (movRes.data || []).forEach(mov => {
+            const fecha = new Date(mov.created_at).toLocaleString('es-ES');
+            if (mov.tipo === 'prestamo_interno' || mov.tipo === 'prestamo_unidad') {
+                movimientosPrestamoActivos[mov.n_extintor] = {
+                    tipo: mov.tipo, personal: mov.personal, motivo: mov.motivo,
+                    reemplazo: mov.reemplazo, responsable_destino: mov.responsable_destino,
+                    ubicacion_destino: mov.ubicacion_destino, fecha: fecha
+                };
+                movimientosActivos[mov.n_extintor] = movimientosPrestamoActivos[mov.n_extintor];
+            } else if (mov.tipo === 'garantia') {
+                movimientosGarantiaActivos[mov.n_extintor] = {
+                    reemplazo: mov.reemplazo, personal: mov.personal, fecha: fecha
+                };
+                if (!movimientosPrestamoActivos[mov.n_extintor]) {
+                    movimientosActivos[mov.n_extintor] = movimientosGarantiaActivos[mov.n_extintor];
+                }
+            }
+        });
+
+        // Procesar observaciones
+        observacionesPublicas = (obsRes.data || []).map(o => ({
+            id: o.id, no: o.n_extintor, texto: o.texto,
+            fecha: new Date(o.created_at).toLocaleDateString('es-ES')
         }));
-        
-        const { data: histData } = await supabaseClient
-            .from(TABLA_MOVIMIENTOS)
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(200);
-        
-            extintoresReemplazados = {};
-(histData || []).forEach(mov => {
-    if (mov.tipo === 'reemplazo_baja' && mov.reemplazo) {
-        extintoresReemplazados[String(mov.reemplazo)] = String(mov.n_extintor);
-    }
-});
-            historialCompleto = (histData || []).map(mov => ({
+
+        // Procesar historial + reemplazos
+        extintoresReemplazados = {};
+        (histRes.data || []).forEach(mov => {
+            if (mov.tipo === 'reemplazo_baja' && mov.reemplazo) {
+                extintoresReemplazados[String(mov.reemplazo)] = String(mov.n_extintor);
+            }
+        });
+
+        historialCompleto = (histRes.data || []).map(mov => ({
             id: mov.id,
             fecha: new Date(mov.created_at).toLocaleString('es-ES'),
             no: mov.n_extintor,
@@ -3472,7 +3809,7 @@ extintoresReemplazados = {};
             personal: mov.personal || '-',
             detalle: mov.detalle || ''
         }));
-        
+
         poblarResponsables();
         inicializarAutocompletes();
         renderCalendar();
@@ -3488,7 +3825,7 @@ extintoresReemplazados = {};
     editorModal.addEventListener('click', (e) => { if (e.target === editorModal) closeEditorModal(); });
     document.getElementById('baja-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeBajaModal(); });
     document.getElementById('nuevo-reemplazo-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeNuevoReemplazoModal(); });
-
+        document.getElementById('garantias-pendientes-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeGarantiasPendientesModal(); });
     condicionFilter.addEventListener('change', applyFilters);
     if (numeroFilter) numeroFilter.addEventListener('input', applyFilters);
 
