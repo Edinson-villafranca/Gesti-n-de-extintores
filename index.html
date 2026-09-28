@@ -498,14 +498,25 @@
             font-weight: 700;
         }
 
-        /* ===== TABLA ===== */
         .table-wrapper {
-            background: #fff;
-            border-radius: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            border: 1px solid #edf2f7;
-            overflow-x: auto;
-            padding: 4px 0;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid #edf2f7;
+    padding: 4px 0;
+
+    /* === SCROLL HORIZONTAL TÁCTIL === */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;   /* momentum en iOS */
+    touch-action: pan-x pan-y;            /* permite ambos ejes */
+    overscroll-behavior-x: contain;       /* no arrastra la página */
+    scrollbar-width: thin;
+}
+
+/* Tabla más ancha que el viewport para que exista scroll */
+.table-wrapper table {
+    min-width: 900px;   /* ajústalo según tus columnas */
         }
         table {
             width: 100%;
@@ -882,6 +893,28 @@
                 padding: 8px 14px;
             }
         }
+        /* ⬇️⬇️⬇️ PEGA AQUÍ EL NUEVO BLOQUE ⬇️⬇️⬇️ */
+        @media (max-width: 768px) {
+            .table-wrapper {
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                border-radius: 12px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-x pan-y;
+                overscroll-behavior-x: contain;
+            }
+            .table-wrapper table {
+                min-width: 900px;
+            }
+            tbody tr {
+                touch-action: pan-x pan-y;
+            }
+            th, td { padding: 10px 12px; }
+        }
+
         /* ═══════════════════════════════════════════════════════════════
    UPGRADE VISUAL — Capa de refinamiento (override)
    ═══════════════════════════════════════════════════════════════ */
