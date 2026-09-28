@@ -264,11 +264,11 @@
             color: #0f172a;
         }
         .filter-group select:disabled {
-    background: #f1f5f9;
-    color: #94a3b8;
-    cursor: not-allowed;
-    opacity: 0.7;
-}
+            background: #f1f5f9;
+            color: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
         .date-filter-wrap {
             position: relative;
             flex: 1 1 200px;
@@ -444,29 +444,29 @@
             cursor: not-allowed;
         }
         /* ===== SCROLLBAR PERSONALIZADO ===== */
-                        .scroll-x {
-    overflow-x: auto;
-    overflow-y: auto;
-    flex: 1 1 auto;
-    min-height: 0;
-    padding-bottom: 4px;
-}   
-#history-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    height: 88vh;
-    padding-bottom: 20px;
-}
-#history-modal .scroll-x {
-    flex: 1 1 auto;
-    min-height: 0;
-    margin-bottom: 4px;
-}
-#history-modal .modal-actions {
-    margin-top: 0;
-    padding-top: 12px;
-    flex-shrink: 0;
-}  
+        .scroll-x {
+            overflow-x: auto;
+            overflow-y: auto;
+            flex: 1 1 auto;
+            min-height: 0;
+            padding-bottom: 4px;
+        }
+        #history-modal .modal-content {
+            display: flex;
+            flex-direction: column;
+            height: 88vh;
+            padding-bottom: 20px;
+        }
+        #history-modal .scroll-x {
+            flex: 1 1 auto;
+            min-height: 0;
+            margin-bottom: 4px;
+        }
+        #history-modal .modal-actions {
+            margin-top: 0;
+            padding-top: 12px;
+            flex-shrink: 0;
+        }
         .scroll-x::-webkit-scrollbar {
             height: 14px;
         }
@@ -499,24 +499,24 @@
         }
 
         .table-wrapper {
-    background: #fff;
-    border-radius: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid #edf2f7;
-    padding: 4px 0;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #edf2f7;
+            padding: 4px 0;
 
-    /* === SCROLL HORIZONTAL TÁCTIL === */
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;   /* momentum en iOS */
-    touch-action: pan-x pan-y;            /* permite ambos ejes */
-    overscroll-behavior-x: contain;       /* no arrastra la página */
-    scrollbar-width: thin;
-}
+            /* === SCROLL HORIZONTAL TÁCTIL === */
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;   /* momentum en iOS */
+            touch-action: pan-x pan-y;            /* permite ambos ejes */
+            overscroll-behavior-x: contain;       /* no arrastra la página */
+            scrollbar-width: thin;
+        }
 
-/* Tabla más ancha que el viewport para que exista scroll */
-.table-wrapper table {
-    min-width: 900px;   /* ajústalo según tus columnas */
+        /* Tabla más ancha que el viewport para que exista scroll */
+        .table-wrapper table {
+            min-width: 900px;   /* ajústalo según tus columnas */
         }
         table {
             width: 100%;
@@ -893,7 +893,7 @@
                 padding: 8px 14px;
             }
         }
-        /* ⬇️⬇️⬇️ PEGA AQUÍ EL NUEVO BLOQUE ⬇️⬇️⬇️ */
+        /* ⬇️⬇️⬇️ BLOQUE ORIGINAL (mantenido para compatibilidad) ⬇️⬇️⬇️ */
         @media (max-width: 768px) {
             .table-wrapper {
                 width: 100%;
@@ -1106,7 +1106,7 @@ body {
     border: 1px solid var(--c-border-soft);
     box-shadow: var(--sh-2);
 
-    /* Scroll horizontal táctil (reemplaza el overflow:hidden) */
+    /* Scroll horizontal táctil (reemplaza el overflow:hidden anterior) */
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
@@ -1565,10 +1565,300 @@ tbody td:first-child strong {
     #history-modal .modal-content {
     height: 92vh;
     padding: 20px;
+    }
+    .header-container {
+        z-index: 200;
+    }
 }
-.header-container {
-    z-index: 200;
-}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE IMPROVEMENTS — Tarjetas, filtros colapsables, header sticky,
+   modales bottom-sheet y touch targets (solo ≤640px)
+   ═══════════════════════════════════════════════════════════════ */
+.filters-toggle { display: none; }
+
+@media (max-width: 640px) {
+    /* ─── HEADER compacto + sticky ─── */
+    .header-container {
+        position: sticky;
+        top: 0;
+        z-index: 300;
+        padding: 10px 14px;
+        gap: 8px 12px;
+        border-bottom-left-radius: 14px;
+        border-bottom-right-radius: 14px;
+        flex-wrap: nowrap;
+    }
+    .header-left { gap: 10px; flex-wrap: nowrap; min-width: 0; }
+    .header-left h2 {
+        font-size: 1rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .logo-empresa { height: 32px; }
+    .menu-btn { font-size: 1.4rem; padding: 4px 8px; }
+
+    /* ─── CONTAINER ─── */
+    .container { padding: 0 12px; margin: 14px auto; }
+
+    /* ─── BOTÓN DE FILTROS ─── */
+    .filters-toggle {
+        display: flex;
+        width: 100%;
+        padding: 12px 16px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        font-family: inherit;
+        font-size: .95rem;
+        font-weight: 600;
+        color: #16a34a;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(15,23,42,.04);
+        transition: background .15s ease;
+    }
+    .filters-toggle:active { background: #f8fafc; }
+    .filters-toggle span { display: flex; align-items: center; gap: 8px; }
+    .filters-toggle .chevron-toggle {
+        transition: transform .25s ease;
+        font-size: .8rem;
+        color: #94a3b8;
+    }
+    .filters-toggle.open .chevron-toggle { transform: rotate(180deg); }
+
+    .filters-bar {
+        padding: 14px;
+        margin-bottom: 14px;
+        border-radius: 16px;
+        gap: 12px;
+    }
+    .filters-bar.collapsed { display: none; }
+    .filter-group label { font-size: .68rem; margin-bottom: 4px; }
+    .filter-group input,
+    .filter-group select,
+    .autocomplete-wrap input,
+    .date-trigger {
+        min-height: 46px;
+        font-size: 16px;   /* evita zoom automático en iOS */
+        padding: 10px 12px;
+    }
+    .autocomplete-item { padding: 12px 14px; font-size: .95rem; }
+    .calendar-popup { width: 100%; left: 0; }
+    .calendar-days button { height: 40px; font-size: .9rem; }
+
+    /* ─── CONTADOR Y ALERTA ─── */
+    .counter { font-size: .82rem; margin-bottom: 10px; padding: 0 2px; }
+    #garantia-alert {
+        padding: 12px 14px !important;
+        font-size: .85rem;
+        border-radius: 12px !important;
+        gap: 8px !important;
+    }
+    #garantia-alert .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 10px 14px !important;
+    }
+
+    /* ─── TABLA → TARJETAS ─── */
+    .table-wrapper {
+        overflow: visible;
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+    }
+    .table-wrapper table,
+    .table-wrapper thead,
+    .table-wrapper tbody,
+    .table-wrapper tr,
+    .table-wrapper td {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+    .table-wrapper thead { display: none; }
+    .table-wrapper table { min-width: 0; }
+
+    .table-wrapper tbody tr {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 2px rgba(15,23,42,.04);
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .table-wrapper tbody tr:active {
+        transform: scale(.985);
+        background: #f8fafc;
+    }
+
+    /* Primera celda (N) — cabecera de la tarjeta */
+    .table-wrapper tbody td:first-child {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 0 0 8px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 1.05rem;
+        text-align: left;
+    }
+    .table-wrapper tbody td:first-child::before {
+        content: "N°";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 6px;
+        background: #dcfce7;
+        color: #15803d;
+        border-radius: 8px;
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+    }
+
+    /* Resto de celdas — filas label : value */
+    .table-wrapper tbody td:not(:first-child) {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 4px 0;
+        text-align: right;
+        font-size: .9rem;
+        border: none;
+    }
+    .table-wrapper tbody td:nth-child(2)::before { content: "Área responsable"; }
+    .table-wrapper tbody td:nth-child(3)::before { content: "Ubic. asignada"; }
+    .table-wrapper tbody td:nth-child(4)::before { content: "Ubic. actual"; }
+    .table-wrapper tbody td:nth-child(5)::before { content: "Condición"; }
+    .table-wrapper tbody td:nth-child(6)::before { content: "Garantía"; }
+    .table-wrapper tbody td:nth-child(7)::before { content: "Estado"; }
+
+    .table-wrapper tbody td:not(:first-child)::before {
+        font-size: .72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        flex-shrink: 0;
+        text-align: left;
+    }
+
+    /* Mensaje "no hay resultados" */
+    .table-wrapper tbody tr td[colspan] {
+        text-align: center !important;
+        display: block !important;
+        padding: 30px 20px !important;
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e5e7eb;
+    }
+
+    /* ─── BOTONES TÁCTILES ─── */
+    .btn {
+        min-height: 44px;
+        padding: 12px 16px;
+        font-size: .9rem;
+        border-radius: 11px;
+    }
+    .modal-actions { gap: 8px; }
+    .modal-actions .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+        min-width: 0;
+    }
+    .modal-actions > div {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+    }
+    .modal-actions > div .btn { flex: 1 1 auto; }
+    #editor-actions { justify-content: stretch !important; }
+    #editor-actions > div { width: 100%; }
+
+    /* ─── MODALES BOTTOM-SHEET ─── */
+    .modal {
+        align-items: flex-end;
+        padding: 0;
+    }
+    .modal-content {
+        border-radius: 24px 24px 0 0;
+        max-height: 94vh;
+        padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+        animation: sheetUp .3s cubic-bezier(.16,1,.3,1);
+    }
+    @keyframes sheetUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    .modal-close {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-header { position: relative; padding-top: 14px; }
+    .modal-header::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 42px;
+        height: 4px;
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .modal-row { flex-direction: column; padding: 8px 0; align-items: flex-start; }
+    .modal-row label { width: 100%; margin-bottom: 2px; }
+    .modal-header h2 { font-size: 1.1rem; }
+    .modal-header h2 i { width: 32px; height: 32px; font-size: .85rem; }
+
+    /* ─── MODAL HISTORIAL ─── */
+    #history-modal .modal-content {
+        height: 94vh;
+        padding: 22px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* ─── EDITOR ─── */
+    .editor-grid { grid-template-columns: 1fr; gap: 10px; }
+    .editor-field input, .editor-field textarea {
+        font-size: 16px;
+    }
+
+    /* ─── FORMULARIOS ─── */
+    .form-group input, .form-group textarea, .form-group select {
+        font-size: 16px;
+        min-height: 44px;
+    }
+    .form-group textarea { min-height: auto; }
+
+    /* ─── MENÚ DROPDOWN ─── */
+    .menu-dropdown {
+        left: 8px;
+        right: 8px;
+        min-width: unset;
+        top: calc(100% + 6px);
+    }
+    .menu-dropdown .menu-item { padding: 12px 14px; font-size: .95rem; min-height: 44px; }
 }
     </style>
 </head>
@@ -1602,8 +1892,14 @@ tbody td:first-child strong {
 </header>
 
 <div class="container">
+    <!-- BOTÓN DE FILTROS (solo visible en móvil) -->
+    <button class="filters-toggle" type="button" id="filtersToggle" aria-label="Mostrar filtros">
+        <span><i class="fas fa-filter"></i> Filtros</span>
+        <i class="fas fa-chevron-down chevron-toggle"></i>
+    </button>
+
     <!-- BARRA DE FILTROS -->
-    <div class="filters-bar">
+    <div class="filters-bar" id="filtersBar">
         <div class="filter-group">
             <label><i class="fas fa-user"></i> Área Responsable</label>
             <div class="autocomplete-wrap" id="responsable-autocomplete-wrap">
@@ -1764,6 +2060,36 @@ tbody td:first-child strong {
 <div id="prompt-modal" class="modal"><div class="modal-content" style="max-width:450px;"><div class="modal-header"><h2 id="prompt-modal-title" style="font-size:1.2rem;">Ingrese información</h2><button class="modal-close" onclick="closePromptModal()">&times;</button></div><div class="modal-section"><div id="prompt-modal-message" style="margin-bottom:12px; font-size:0.95rem; color:#334155;"></div><div class="form-group"><input type="text" id="prompt-modal-input" placeholder="Escriba aquí..." style="width:100%; padding:12px; border:1px solid #d1d9e6; border-radius:12px; font-size:1rem;"></div></div><div class="modal-actions" style="justify-content:center;"><button class="btn btn-primary" onclick="acceptPrompt()">Aceptar</button><button class="btn btn-secondary" onclick="closePromptModal()">Cancelar</button></div></div></div>
 
 <script>
+    // ═══════════════════════════════════════════════════════════
+    //  FILTROS COLAPSABLES EN MÓVIL
+    // ═══════════════════════════════════════════════════════════
+    (function initMobileFilters() {
+        const filtersBar = document.getElementById('filtersBar');
+        const toggle = document.getElementById('filtersToggle');
+        if (!filtersBar || !toggle) return;
+
+        const isMobile = () => window.innerWidth <= 640;
+
+        function syncOnLoad() {
+            if (isMobile() && !filtersBar.dataset.initialized) {
+                filtersBar.classList.add('collapsed');
+                filtersBar.dataset.initialized = 'true';
+            }
+            if (!isMobile()) {
+                filtersBar.classList.remove('collapsed');
+                toggle.classList.remove('open');
+            }
+        }
+
+        toggle.addEventListener('click', () => {
+            filtersBar.classList.toggle('collapsed');
+            toggle.classList.toggle('open');
+        });
+
+        window.addEventListener('resize', syncOnLoad);
+        syncOnLoad();
+    })();
+
     function actualizarEstadoCondicionFilter() {
     const condicionSelect = document.getElementById('condicion-filter');
     if (!condicionSelect) return;
