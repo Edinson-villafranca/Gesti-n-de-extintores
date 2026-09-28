@@ -1105,7 +1105,13 @@ body {
     border-radius: var(--radius-lg);
     border: 1px solid var(--c-border-soft);
     box-shadow: var(--sh-2);
-    overflow: hidden;
+
+    /* Scroll horizontal táctil (reemplaza el overflow:hidden) */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    overscroll-behavior-x: contain;
 }
 table {
     font-size: .875rem;
