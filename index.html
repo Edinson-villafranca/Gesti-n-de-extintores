@@ -2416,16 +2416,38 @@ tbody td:first-child strong {
     //  ADMINISTRADOR Y FILTROS
     // ============================================================
     function actualizarOpcionesCondicion() {
-        const select = document.getElementById('condicion-filter');
-        const valorActual = select.value;
-        select.innerHTML = '';
-        const opcionesBase = [{ value: '', label: 'Condición' }, { value: 'Vigente', label: 'Vigente' }, { value: 'Vencido', label: 'Vencido' }, { value: 'Mantenimiento', label: 'Mantenimiento' }];
-        const opcionesAdmin = [{ value: 'Usado', label: 'Usado' }, { value: 'Despresurizado', label: 'Despresurizado' }, { value: 'Dañado', label: 'Dañado' }, { value: 'Baja', label: 'Baja' }];
-        const opciones = isAdmin ? [...opcionesBase, ...opcionesAdmin] : opcionesBase;
-        opciones.forEach(opt => { const option = document.createElement('option'); option.value = opt.value; option.textContent = opt.label; select.appendChild(option); });
-        const valoresDisponibles = opciones.map(o => o.value);
-        select.value = valoresDisponibles.includes(valorActual) ? valorActual : '';
-    }
+    const select = document.getElementById('condicion-filter');
+    const valorActual = select.value;
+    select.innerHTML = '';
+
+    // Opciones visibles en modo público
+    const opcionesBase = [
+        { value: '', label: 'Condición' },
+        { value: 'Vigente', label: 'Vigente' },
+        { value: 'Vencido', label: 'Vencido' }
+    ];
+
+    // Opciones exclusivas de admin (incluye Mantenimiento)
+    const opcionesAdmin = [
+        { value: 'Mantenimiento', label: 'Mantenimiento' },
+        { value: 'Usado', label: 'Usado' },
+        { value: 'Despresurizado', label: 'Despresurizado' },
+        { value: 'Dañado', label: 'Dañado' },
+        { value: 'Baja', label: 'Baja' }
+    ];
+
+    const opciones = isAdmin ? [...opcionesBase, ...opcionesAdmin] : opcionesBase;
+
+    opciones.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        select.appendChild(option);
+    });
+
+    const valoresDisponibles = opciones.map(o => o.value);
+    select.value = valoresDisponibles.includes(valorActual) ? valorActual : '';
+}
 
     function actualizarMenuAdmin() {
         const adminText = document.getElementById('menuAdminText');
