@@ -2602,7 +2602,12 @@ tbody td:first-child strong {
     // ============================================================
     const MESES = { jan: 1, enero: 1, feb: 2, febrero: 2, mar: 3, marzo: 3, apr: 4, abr: 4, abril: 4, may: 5, mayo: 5, jun: 6, junio: 6, jul: 7, julio: 7, aug: 8, ago: 8, agosto: 8, sep: 9, sept: 9, septiembre: 9, oct: 10, octubre: 10, nov: 11, noviembre: 11, dec: 12, dic: 12, diciembre: 12 };
     function getMonthYear(dateStr) { if (!dateStr || String(dateStr).trim() === "") return null; const value = String(dateStr).trim().toLowerCase().replace(/\./g,'').replace(/\s+/g,''); let match = value.match(/^(\d{1,2})[\/-](\d{2}|\d{4})$/); if (match) { const month = Number(match[1]); let year = Number(match[2]); if (month >= 1 && month <= 12) { if (year < 100) year += 2000; return { month, year }; } } match = value.match(/^(\d{2}|\d{4})[\/-]([a-záéíóúñ]+)$/i); if (match) { let year = Number(match[1]); const month = MESES[match[2]]; if (month) { if (year < 100) year += 2000; return { month, year }; } } match = value.match(/^([a-záéíóúñ]+)[\/-](\d{2}|\d{4})$/i); if (match) { let year = Number(match[2]); const month = MESES[match[1]]; if (month) { if (year < 100) year += 2000; return { month, year }; } } return null; }
-    function parseDate(dateStr) { const result = getMonthYear(dateStr); if (!result) return null; return new Date(result.year, result.month - 1, 1, 23, 59, 59, 999); }
+    function parseDate(dateStr) { 
+    const result = getMonthYear(dateStr); 
+    if (!result) return null; 
+    // 👇 Cambiado: antes era 23:59:59 del día 1 → ahora 00:00:00 del día 1
+    return new Date(result.year, result.month - 1, 1, 0, 0, 0, 0); 
+}
     function formatMonthYear(dateStr) { const result = getMonthYear(dateStr); if (!result) return dateStr || "-"; return `${String(result.month).padStart(2, '0')}/${result.year}`; }
     function isExpired(dateStr) { const date = parseDate(dateStr); return date ? date < new Date() : false; }
     function isItemExpired(item) {
@@ -3737,85 +3742,94 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         document.getElementById('garantias-pendientes-modal').classList.remove('active');
     }
         async function finalizarGarantia(itemIndex) {
-        const item = misDatos[itemIndex];
-        const no = String(item["N"]);
-        
-        if (!movimientosGarantiaActivos[no]) { 
-            await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso'); 
-            return; 
-        }
-
-        // 👇 Feedback visual: spinner en el botón "Finalizar Garantía"
-        const allBtns = detailModal.querySelectorAll('.modal-actions .btn');
-        let saveBtn = null;
-        let textoOriginal = '';
-        allBtns.forEach(btn => {
-            if (btn.innerText.includes('Finalizar Garantía')) {
-                saveBtn = btn;
-                textoOriginal = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finalizando...';
-            } else {
-                btn.disabled = true;
-            }
-        });
-
-        try {
-            const now = new Date();
-            const nuevoAnio = now.getFullYear() + 1;
-            const nuevoMes = now.getMonth() + 1;
-            let mesFinal = nuevoMes, anioFinal = nuevoAnio;
-            if (mesFinal > 12) { mesFinal = mesFinal - 12; anioFinal = anioFinal + 1; }
-            const nuevaFecha = `${String(mesFinal).padStart(2, '0')}/${anioFinal}`;
-
-            // 🚀 Los 2 viajes a Supabase EN PARALELO
-            const [updateExtintor, desactivarMov] = await Promise.all([
-                supabaseClient
-                    .from(TABLA_EXTINTORES)
-                    .update({
-                        "F. VENC.": nuevaFecha,
-                        ESTADO: null,
-                        proxima_recarga: null
-                    })
-                    .eq('N', no),
-                supabaseClient
-                    .from(TABLA_MOVIMIENTOS)
-                    .update({ activo: false })
-                    .eq('n_extintor', no)
-                    .eq('tipo', 'garantia')
-                    .eq('activo', true)
-            ]);
-
-            if (updateExtintor.error) throw updateExtintor.error;
-            if (desactivarMov.error) throw desactivarMov.error;
-            
-            await actualizarUnExtintor(no);
-            delete movimientosGarantiaActivos[no];
-            delete movimientosActivos[no];
-            
-            historialCompleto.push({
-                fecha: new Date().toLocaleString('es-ES'),
-                no: no,
-                tipo: 'Garantía finalizada',
-                personal: 'Sistema',
-                detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}`
-            });
-            
-            // Cerrar modal + refrescar ANTES del mensaje
-            closeModal();
-            applyFilters();
-            
-            await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha}`, 'Éxito');
-
-        } catch (err) {
-            console.error(err);
-            await showGenericModal('Error al finalizar la garantía: ' + (err.message || err), 'Error');
-        } finally {
-            // 👇 Pase lo que pase, restaurar botones
-            allBtns.forEach(btn => btn.disabled = false);
-            if (saveBtn && textoOriginal) saveBtn.innerHTML = textoOriginal;
-        }
+    const item = misDatos[itemIndex];
+    const no = String(item["N"]);
+    
+    if (!movimientosGarantiaActivos[no]) { 
+        await showGenericModal('Este extintor no tiene una garantía activa.', 'Aviso'); 
+        return; 
     }
+
+    // 👇 NUEVO: Pedir la fecha MANUALMENTE al usuario
+    const fechaIngresada = await showPromptModal(
+        'Ingrese la nueva fecha de vencimiento (MM/AAAA). Ejemplo: 09/2027',
+        'Nueva fecha de vencimiento',
+        item["F. VENC."] || ''
+    );
+    if (fechaIngresada === null) return; // Usuario canceló
+    const fechaLimpia = fechaIngresada.trim();
+    if (!fechaLimpia) {
+        await showGenericModal('Debe ingresar una fecha.', 'Aviso');
+        return;
+    }
+    if (!getMonthYear(fechaLimpia)) {
+        await showGenericModal('Formato inválido. Use MM/AAAA (ej. 09/2027).', 'Aviso');
+        return;
+    }
+
+    // Feedback visual: spinner en el botón
+    const allBtns = detailModal.querySelectorAll('.modal-actions .btn');
+    let saveBtn = null;
+    let textoOriginal = '';
+    allBtns.forEach(btn => {
+        if (btn.innerText.includes('Finalizar Garantía')) {
+            saveBtn = btn;
+            textoOriginal = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finalizando...';
+        } else {
+            btn.disabled = true;
+        }
+    });
+
+    try {
+        const nuevaFecha = fechaLimpia; // 👈 Se usa la fecha ingresada manualmente
+
+        const [updateExtintor, desactivarMov] = await Promise.all([
+            supabaseClient
+                .from(TABLA_EXTINTORES)
+                .update({
+                    "F. VENC.": nuevaFecha,
+                    ESTADO: null,
+                    proxima_recarga: null
+                })
+                .eq('N', no),
+            supabaseClient
+                .from(TABLA_MOVIMIENTOS)
+                .update({ activo: false })
+                .eq('n_extintor', no)
+                .eq('tipo', 'garantia')
+                .eq('activo', true)
+        ]);
+
+        if (updateExtintor.error) throw updateExtintor.error;
+        if (desactivarMov.error) throw desactivarMov.error;
+        
+        await actualizarUnExtintor(no);
+        delete movimientosGarantiaActivos[no];
+        delete movimientosActivos[no];
+        
+        historialCompleto.push({
+            fecha: new Date().toLocaleString('es-ES'),
+            no: no,
+            tipo: 'Garantía finalizada',
+            personal: 'Sistema',
+            detalle: `Garantía finalizada - Nuevo vencimiento: ${nuevaFecha}`
+        });
+        
+        closeModal();
+        applyFilters();
+        
+        await showGenericModal(`Garantía finalizada. Nuevo vencimiento: ${nuevaFecha}`, 'Éxito');
+
+    } catch (err) {
+        console.error(err);
+        await showGenericModal('Error al finalizar la garantía: ' + (err.message || err), 'Error');
+    } finally {
+        allBtns.forEach(btn => btn.disabled = false);
+        if (saveBtn && textoOriginal) saveBtn.innerHTML = textoOriginal;
+    }
+}
 
     async function finalizarPrestamo(itemIndex) {
     const item = misDatos[itemIndex];
