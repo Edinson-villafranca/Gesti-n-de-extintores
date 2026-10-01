@@ -1871,18 +1871,30 @@ tbody td:first-child strong {
     </button>
     <div class="menu-dropdown" id="menuDropdown">
         <button class="menu-item" id="menuObservaciones" onclick="verObservacionesGenerales(); cerrarMenu();">
-            <i class="fas fa-clipboard-list"></i> Observaciones
-        </button>
-        <button class="menu-item" id="menuHistorial" onclick="verHistorial(); cerrarMenu();">
-            <i class="fas fa-history"></i> Historial
-        </button>
-        <button class="menu-item" id="menuExportar" onclick="exportarExcel(); cerrarMenu();">
-            <i class="fas fa-file-excel"></i> Exportar
-        </button>
-        <button class="menu-item" id="menuAdminBtn" onclick="activarAdmin(); cerrarMenu();">
-            <i class="fas fa-lock"></i> <span id="menuAdminText">Modo Administrador</span>
-            <span class="badge-admin" id="menuAdminBadge" style="display:none;">ACTIVO</span>
-        </button>
+    <i class="fas fa-clipboard-list"></i> Observaciones
+</button>
+
+<button class="menu-item" id="menuHistorial" onclick="verHistorial(); cerrarMenu();">
+    <i class="fas fa-history"></i> Historial
+</button>
+
+<button class="menu-item" id="menuExportar" onclick="exportarExcel(); cerrarMenu();">
+    <i class="fas fa-file-excel"></i> Exportar
+</button>
+
+<!-- AGREGAR EXTINTOR - SOLO ADMIN -->
+<button class="menu-item" id="menuAgregarExtintor"
+        onclick="abrirAgregarExtintor(); cerrarMenu();"
+        style="display:none;">
+    <i class="fas fa-plus-circle" style="color:#16a34a;"></i>
+    Agregar extintor
+</button>
+
+<button class="menu-item" id="menuAdminBtn" onclick="activarAdmin(); cerrarMenu();">
+    <i class="fas fa-lock"></i>
+    <span id="menuAdminText">Modo Administrador</span>
+    <span class="badge-admin" id="menuAdminBadge" style="display:none;">ACTIVO</span>
+</button>
     </div>
 
     <div class="header-left">
@@ -2119,7 +2131,7 @@ tbody td:first-child strong {
     const BUCKET_NAME = 'Extintores';
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const CLAVE_ADMIN = "Romero26";
+    const TABLA_USUARIOS = 'usuarios';
     let isAdmin = sessionStorage.getItem('extintor_admin') === 'true';
 
     // ============================================================
@@ -2450,28 +2462,46 @@ tbody td:first-child strong {
 }
 
     function actualizarMenuAdmin() {
-        const adminText = document.getElementById('menuAdminText');
-        const adminBadge = document.getElementById('menuAdminBadge');
-        const menuObservaciones = document.getElementById('menuObservaciones');
-        const menuHistorial = document.getElementById('menuHistorial');
-        const menuExportar = document.getElementById('menuExportar');
+    const adminText = document.getElementById('menuAdminText');
+    const adminBadge = document.getElementById('menuAdminBadge');
+    const menuObservaciones = document.getElementById('menuObservaciones');
+    const menuHistorial = document.getElementById('menuHistorial');
+    const menuExportar = document.getElementById('menuExportar');
+    const menuAgregarExtintor = document.getElementById('menuAgregarExtintor');
 
-        if (isAdmin) {
-            adminText.textContent = 'Modo Administrador (Activo)';
-            adminBadge.style.display = 'inline-block';
-            adminBadge.textContent = 'ACTIVO';
-            adminBadge.className = 'badge-admin active';
-            menuObservaciones.style.display = 'flex';
-            menuHistorial.style.display = 'flex';
-            menuExportar.style.display = 'flex';
-        } else {
-            adminText.textContent = 'Modo Administrador';
-            adminBadge.style.display = 'none';
-            menuObservaciones.style.display = 'none';
-            menuHistorial.style.display = 'none';
-            menuExportar.style.display = 'none';
+    if (isAdmin) {
+        const nombreAdmin = sessionStorage.getItem('extintor_admin_nombre') || 'Administrador';
+        const rolAdmin = sessionStorage.getItem('extintor_admin_rol') || 'admin';
+        adminText.textContent = `${nombreAdmin} (${rolAdmin})`;
+
+        adminBadge.style.display = 'inline-block';
+        adminBadge.textContent = 'ACTIVO';
+        adminBadge.className = 'badge-admin active';
+
+        menuObservaciones.style.display = 'flex';
+        menuHistorial.style.display = 'flex';
+        menuExportar.style.display = 'flex';
+
+        // Mostrar opción para agregar extintor
+        if (menuAgregarExtintor) {
+            menuAgregarExtintor.style.display = 'flex';
+        }
+
+    } else {
+        adminText.textContent = 'Modo Administrador';
+
+        adminBadge.style.display = 'none';
+
+        menuObservaciones.style.display = 'none';
+        menuHistorial.style.display = 'none';
+        menuExportar.style.display = 'none';
+
+        // Ocultar opción para agregar extintor
+        if (menuAgregarExtintor) {
+            menuAgregarExtintor.style.display = 'none';
         }
     }
+}
 
     function aplicarPermisos() {
     const estadoHeader = document.getElementById('estado-header');
@@ -2564,26 +2594,53 @@ tbody td:first-child strong {
         }
     }
 
-    async function activarAdmin() {
-        if (isAdmin) {
-            sessionStorage.removeItem('extintor_admin');
-            isAdmin = false;
-            aplicarPermisos();
-            await showGenericModal('Sesión de administrador cerrada.', 'Aviso');
-            location.reload();
-        } else {
-            const password = await showPromptModal('Ingrese la contraseña de Administrador:', 'Acceso Administrador');
-            if (password === CLAVE_ADMIN) {
-                sessionStorage.setItem('extintor_admin', 'true');
-                isAdmin = true;
-                aplicarPermisos();
-                await showGenericModal('¡Acceso concedido!', 'Éxito');
-                location.reload();
-            } else if (password !== null) {
-                await showGenericModal('Contraseña incorrecta.', 'Error');
-            }
-        }
+        async function activarAdmin() {
+    if (isAdmin) {
+        sessionStorage.removeItem('extintor_admin');
+        sessionStorage.removeItem('extintor_admin_nombre');
+        sessionStorage.removeItem('extintor_admin_rol');
+        isAdmin = false;
+        aplicarPermisos();
+        await showGenericModal('Sesión de administrador cerrada.', 'Aviso');
+        location.reload();
+        return;
     }
+
+    // Solo pedimos la contraseña
+    const password = await showPromptModal('Ingrese la contraseña de Administrador:', 'Acceso Administrador');
+    if (!password) return;
+
+    // Validar contra la tabla de Supabase usando el usuario fijo
+    const USUARIO_ADMIN = 'Seguridad Industrial';
+
+    const { data, error } = await supabaseClient
+        .from(TABLA_USUARIOS)
+        .select('*')
+        .eq('usuario', USUARIO_ADMIN)
+        .eq('contrasena', password.trim())
+        .eq('activo', true)
+        .maybeSingle();
+
+    if (error) {
+        console.error(error);
+        await showGenericModal('Error al validar: ' + error.message, 'Error');
+        return;
+    }
+
+    if (!data) {
+        await showGenericModal('Contraseña incorrecta.', 'Error');
+        return;
+    }
+
+    // Login exitoso
+    isAdmin = true;
+    sessionStorage.setItem('extintor_admin', 'true');
+    sessionStorage.setItem('extintor_admin_nombre', data.usuario);
+    sessionStorage.setItem('extintor_admin_rol', data.rol);
+    aplicarPermisos();
+    await showGenericModal(`¡Bienvenido, ${data.usuario}!`, 'Éxito');
+    location.reload();
+}
     aplicarPermisos();
 
     // ============================================================
@@ -3943,7 +4000,16 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
     'observaciones': 'Observaciones',     
     'proxima_recarga': 'Próxima Recarga'  
 };
+function abrirAgregarExtintor() {
+    if (!isAdmin) return;
 
+    // No existe un extintor de origen.
+    // Se trata de un registro completamente nuevo.
+    currentItemIndex = null;
+    extintorBajaOrigen = null;
+
+    abrirNuevoExtintor();
+}
     function abrirNuevoExtintor() {
     if (!isAdmin) return;
 
@@ -3951,28 +4017,77 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         ? misDatos[currentItemIndex]
         : {};
 
-    // Guardar origen si venimos de un extintor dado de baja
-    extintorBajaOrigen = (itemBase['CONDICION'] === 'Baja') ? itemBase : null;
+    // Guardar origen únicamente si venimos desde un extintor dado de baja
+    extintorBajaOrigen = (itemBase['CONDICION'] === 'Baja')
+        ? itemBase
+        : null;
 
     editorModoCreacion = true;
 
+    // ============================================================
+    // CAMPOS DISPONIBLES PARA UN EXTINTOR NUEVO
+    // ============================================================
+
+    const camposBase = [
+        'N',
+        'N SERIE ACTUAL',
+        'TIPO',
+        'CAP.',
+        'costo_recarga',
+        'zona',
+        'gerencia',
+        'AREA RESPONSABLE',
+        'UBICACION',
+        'ph_vencimiento',
+        'F. VENC.',
+        'fecha_fabricacion',
+        'proveedor',
+        'anterior_ubicacion',
+        'vigencia_actual',
+        'ubicacion_prestamo',
+        'CONDICION',
+        'ESTADO',
+        'observaciones',
+        'proxima_recarga'
+    ];
+
+    // Si estamos reemplazando un extintor dado de baja,
+    // utilizamos las columnas reales de ese registro.
+    const excluir = ['id', 'created_at', 'updated_at', 'evidencia'];
+
+    const clavesItem = Object.keys(itemBase)
+        .filter(k => !excluir.includes(k));
+
+    // Si no existe un extintor seleccionado, usamos la estructura base.
+    const clavesFinales = clavesItem.length > 0
+        ? clavesItem
+        : camposBase;
+
+    // ============================================================
+    // TÍTULO DEL MODAL
+    // ============================================================
+
     const titulo = extintorBajaOrigen
         ? `Registrar extintor de reemplazo del N° ${itemBase['N']}`
-        : 'Registrar nuevo extintor';
+        : 'Agregar nuevo extintor';
 
     document.getElementById('editor-title').innerHTML =
-        `<i class="fas fa-exchange-alt" style="color:#10b981;"></i> ${titulo}`;
-    document.getElementById('editor-subtitle').textContent = extintorBajaOrigen
-        ? `El nuevo extintor reemplazará al N° ${itemBase['N']} (dado de baja). Modifique lo que necesite.`
-        : 'Datos precargados. Modifique lo que necesite antes de guardar.';
+        `<i class="fas fa-plus-circle" style="color:#16a34a;"></i> ${titulo}`;
+
+    document.getElementById('editor-subtitle').textContent =
+        extintorBajaOrigen
+            ? `El nuevo extintor reemplazará al N° ${itemBase['N']} (dado de baja). Modifique lo necesario.`
+            : 'Complete los datos del nuevo extintor antes de registrarlo.';
+
+    // ============================================================
+    // GENERAR FORMULARIO
+    // ============================================================
 
     const editorBody = document.getElementById('editor-body');
     editorBody.innerHTML = '';
 
-    const excluir = ['id', 'created_at', 'updated_at', 'evidencia'];
-    const clavesItem = Object.keys(itemBase).filter(k => !excluir.includes(k));
+    clavesFinales.forEach(clave => {
 
-    clavesItem.forEach(clave => {
         const campo = document.createElement('div');
         campo.className = 'editor-field';
 
@@ -3980,6 +4095,7 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         label.textContent = nombresMostrar[clave] || clave;
 
         const valorBase = itemBase[clave] ?? '';
+
         const input = String(valorBase).length > 70
             ? document.createElement('textarea')
             : document.createElement('input');
@@ -3987,24 +4103,71 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         input.dataset.key = clave;
         input.disabled = false;
 
+        // ========================================================
+        // NÚMERO DE EXTINTOR
+        // ========================================================
+
         if (clave === 'N') {
-    // ❌ NO precargar el número viejo — el nuevo debe ser distinto
-    input.value = '';
-    input.placeholder = `Nuevo N° (el anterior era ${valorBase})`;
-    campo.style.border = '2px solid #f59e0b';
-    campo.style.background = '#fffbeb';
-    label.style.color = '#b45309';
-    label.textContent = 'Número de Extintor (NUEVO, obligatorio)';
-} else if (clave === 'CONDICION') {
-            input.value = 'Vigente';
-        } else if (clave === 'ESTADO' || clave === 'ubicacion_prestamo') {
+
             input.value = '';
+
+            input.placeholder = extintorBajaOrigen
+                ? `Nuevo N° (el anterior era ${valorBase})`
+                : 'Ingrese el número del extintor';
+
+            campo.style.border = '2px solid #f59e0b';
+            campo.style.background = '#fffbeb';
+
+            label.style.color = '#b45309';
+            label.textContent = 'Número de Extintor (obligatorio)';
+
+        // ========================================================
+        // CONDICIÓN
+        // ========================================================
+
+        } else if (clave === 'CONDICION') {
+
+            input.value = 'Vigente';
+
+        // ========================================================
+        // ESTADO
+        // ========================================================
+
+        } else if (clave === 'ESTADO') {
+
+            input.value = '';
+
+        // ========================================================
+        // UBICACIÓN DE PRÉSTAMO
+        // ========================================================
+
+        } else if (clave === 'ubicacion_prestamo') {
+
+            input.value = '';
+
+        // ========================================================
+        // OBSERVACIONES
+        // ========================================================
+
         } else if (clave === 'observaciones') {
+
             input.value = extintorBajaOrigen
                 ? `Reemplazo del extintor dado de baja N° ${itemBase['N']}`
                 : 'Creado manualmente desde el sistema.';
-        } else {
+
+        // ========================================================
+        // CAMPOS PRECARGADOS
+        // ========================================================
+
+        } else if (extintorBajaOrigen) {
+
             input.value = String(valorBase);
+
+        } else {
+
+            // Extintor completamente nuevo:
+            // los campos comienzan vacíos.
+            input.value = '';
         }
 
         campo.appendChild(label);
@@ -4012,13 +4175,25 @@ ${item["proxima_recarga"] && String(item["proxima_recarga"]).trim() !== "" ? `<d
         editorBody.appendChild(campo);
     });
 
+    // ============================================================
+    // CONFIGURAR BOTONES DEL MODAL
+    // ============================================================
+
     document.getElementById('editor-evidencia-container').innerHTML = '';
+
     document.getElementById('editor-left-actions').style.display = 'none';
 
     const saveBtn = document.getElementById('editor-save-btn');
-    saveBtn.innerHTML = '<i class="fas fa-save"></i> Crear y reemplazar';
-    saveBtn.onclick = function() { guardarNuevoExtintor(); };
 
+    saveBtn.innerHTML = extintorBajaOrigen
+        ? '<i class="fas fa-exchange-alt"></i> Crear y reemplazar'
+        : '<i class="fas fa-plus"></i> Registrar extintor';
+
+    saveBtn.onclick = function() {
+        guardarNuevoExtintor();
+    };
+
+    // Abrir modal
     closeModal();
     editorModal.classList.add('active');
 }
@@ -4867,7 +5042,7 @@ extintoresReemplazados = {};
         applyFilters();
     }
 
-    // Eventos para cerrar modales con clic fuera
+        // Eventos para cerrar modales con clic fuera
     detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeModal(); });
     loanModal.addEventListener('click', (e) => { if (e.target === loanModal) closeLoanModal(); });
     historyModal.addEventListener('click', (e) => { if (e.target === historyModal) closeHistoryModal(); });
@@ -4876,10 +5051,9 @@ extintoresReemplazados = {};
     editorModal.addEventListener('click', (e) => { if (e.target === editorModal) closeEditorModal(); });
     document.getElementById('baja-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeBajaModal(); });
     document.getElementById('nuevo-reemplazo-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeNuevoReemplazoModal(); });
-        document.getElementById('garantias-pendientes-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeGarantiasPendientesModal(); });
+    document.getElementById('garantias-pendientes-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeGarantiasPendientesModal(); });
     condicionFilter.addEventListener('change', applyFilters);
     if (numeroFilter) numeroFilter.addEventListener('input', applyFilters);
-
     iniciarApp();
 </script>
 </body>
